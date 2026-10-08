@@ -431,7 +431,7 @@ class Output(Device):
 
         current_dict_time = None
         for time in times:
-            if isinstance(self.instructions[time], dict) and current_dict_time is None:
+            if isinstance(self.instructions[time], dict):
                 current_dict_time = self.instructions[time]
             elif (
                 current_dict_time is not None
