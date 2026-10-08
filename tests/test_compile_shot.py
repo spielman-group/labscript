@@ -139,6 +139,19 @@ class CompileTests(unittest.TestCase):
             properties_ = properties.get(f, 'pseudoclock', 'device_properties')
         self.assertEqual(properties_['stop_time'], 3)
 
+    def test_an_instruction_inside_a_later_ramp_is_refused(self):
+        ramps = textwrap.dedent(
+            '''
+            analog_out.ramp(t, duration=0.25, initial=0, final=1, samplerate=100)
+            analog_out.ramp(t + 0.5, duration=0.25, initial=0, final=1, samplerate=100)
+            analog_out.constant(t + 0.6, 0.5)
+            '''
+        )
+        with open(self.script, 'w') as f:
+            f.write(SHOT.replace('shutter.open(t)\n', 'shutter.open(t)\n' + ramps))
+        with self.assertRaises(labscript.LabscriptError):
+            self.compile_the_shot()
+
 
 if __name__ == '__main__':
     unittest.main()
