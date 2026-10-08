@@ -431,7 +431,7 @@ class Output(Device):
 
         current_dict_time = None
         for time in times:
-            if isinstance(self.instructions[time], dict) and current_dict_time is None:
+            if isinstance(self.instructions[time], dict):
                 current_dict_time = self.instructions[time]
             elif (
                 current_dict_time is not None
@@ -2074,6 +2074,7 @@ class StaticDDS(Device):
             phase_conv_params,
         )        
 
+        self.gate = None
         digital_gate = digital_gate or {}
         if "device" in digital_gate and "connection" in digital_gate:
             dev = digital_gate.pop("device")
@@ -2115,11 +2116,11 @@ class StaticDDS(Device):
         """
         self.phase.constant(value,units) 
 
-    def enable(self, t=None):
+    def enable(self, t):
         """Enable the Output.
 
         Args:
-            t (float, optional): Time, in seconds, to enable the output at.
+            t (float): Time, in seconds, to enable the output at.
 
         Raises:
             LabscriptError: If the DDS is not instantiated with a digital gate.
@@ -2132,11 +2133,11 @@ class StaticDDS(Device):
                 "enable(t) method."
             )
 
-    def disable(self, t=None):
+    def disable(self, t):
         """Disable the Output.
 
         Args:
-            t (float, optional): Time, in seconds, to disable the output at.
+            t (float): Time, in seconds, to disable the output at.
 
         Raises:
             LabscriptError: If the DDS is not instantiated with a digital gate.
