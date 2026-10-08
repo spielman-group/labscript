@@ -207,7 +207,7 @@ def bitfield(arrays,dtype):
     n = {np.uint8: 8, np.uint16: 16, np.uint32: 32}
     if np.array_equal(arrays[0], 0):
         y = np.zeros(
-            max([len(arr) if np.iterable(arr) else 1 for arr in arrays]), dtype=np.dtype
+            max([len(arr) if np.iterable(arr) else 1 for arr in arrays]), dtype=dtype
         )
     else:
         y = np.array(arrays[0], dtype=dtype)
