@@ -2074,6 +2074,7 @@ class StaticDDS(Device):
             phase_conv_params,
         )        
 
+        self.gate = None
         digital_gate = digital_gate or {}
         if "device" in digital_gate and "connection" in digital_gate:
             dev = digital_gate.pop("device")
