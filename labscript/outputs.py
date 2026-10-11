@@ -1126,7 +1126,42 @@ class AnalogOut(AnalogQuantity):
     description = "analog output"
     
     
-class StaticAnalogQuantity(Output):
+class _StaticQuantity:
+    """Members shared by outputs that hold one value for the whole shot."""
+
+    def get_change_times(self):
+        """Enforces no change times.
+
+        Returns:
+            list: An empty list, as expected by the parent pseudoclock.
+        """
+        # Return an empty list as the calling function at the pseudoclock level expects
+        # a list
+        return []
+
+    def make_timeseries(self,change_times):
+        """Since output is static, does nothing."""
+        pass
+
+    def expand_timeseries(self,*args,**kwargs):
+        """Defines the `raw_output` attribute.
+        """
+        self.raw_output = np.array([self.static_value], dtype=self.dtype)
+
+    @property
+    def static_value(self):
+        """float: The value of the static output."""
+        if self._static_value is None:
+            if not compiler.suppress_mild_warnings and not compiler.suppress_all_warnings:
+                sys.stderr.write(
+                    f"WARNING: {self.name} has no value set. It will be set to "
+                    f"{self.instruction_to_string(self.default_value)}.\n"
+                )
+            self._static_value = self.default_value
+        return self._static_value
+
+
+class StaticAnalogQuantity(_StaticQuantity, Output):
     """Base class for :obj:`StaticAnalogOut`.
 
     It can also be used internally by other more complex output types.
@@ -1182,36 +1217,6 @@ class StaticAnalogQuantity(Output):
                 f"{value} ({units if units is not None else 'base units'})."
             )
 
-    def get_change_times(self):
-        """Enforces no change times.
-
-        Returns:
-            list: An empty list, as expected by the parent pseudoclock.
-        """
-        # Return an empty list as the calling function at the pseudoclock level expects
-        # a list
-        return []
-
-    def make_timeseries(self,change_times):
-        """Since output is static, does nothing."""
-        pass
-
-    def expand_timeseries(self,*args,**kwargs):
-        """Defines the `raw_output` attribute.
-        """
-        self.raw_output = np.array([self.static_value], dtype=self.dtype)
-
-    @property
-    def static_value(self):
-        """float: The value of the static output."""
-        if self._static_value is None:
-            if not compiler.suppress_mild_warnings and not compiler.suppress_all_warnings:
-                sys.stderr.write(
-                    f"WARNING: {self.name} has no value set. It will be set to "
-                    f"{self.instruction_to_string(self.default_value)}.\n"
-                )
-            self._static_value = self.default_value
-        return self._static_value
 
 
 class StaticAnalogOut(StaticAnalogQuantity):
@@ -1329,7 +1334,7 @@ class DigitalOut(DigitalQuantity):
     description = "digital output"
 
 
-class StaticDigitalQuantity(DigitalQuantity):
+class StaticDigitalQuantity(_StaticQuantity, DigitalQuantity):
     """Base class for :obj:`StaticDigitalOut`.
 
     It can also be used internally by other, more complex, output types.
@@ -1358,15 +1363,7 @@ class StaticDigitalQuantity(DigitalQuantity):
         Raises:
             LabscriptError: If output has already been set low.
         """
-        if self._static_value is None:
-            self.add_instruction(0, 1)
-            self._static_value = 1
-        else:
-            raise LabscriptError(
-                f"{self.description} {self.name} has already been set to "
-                f"{self.instruction_to_string(self._static_value)}. It cannot "
-                "also be set to 1."
-            )
+        self._set_static(1)
 
     def go_low(self):
         """Command a static low output.
@@ -1374,46 +1371,18 @@ class StaticDigitalQuantity(DigitalQuantity):
         Raises:
             LabscriptError: If output has already been set high.
         """
-        if self._static_value is None:
-            self.add_instruction(0, 0) 
-            self._static_value = 0
-        else:
+        self._set_static(0)
+
+    def _set_static(self, value):
+        if self._static_value is not None:
             raise LabscriptError(
                 f"{self.description} {self.name} has already been set to "
                 f"{self.instruction_to_string(self._static_value)}. It cannot "
-                "also be set to 0."
+                f"also be set to {value}."
             )
+        self.add_instruction(0, value)
+        self._static_value = value
 
-    def get_change_times(self):
-        """Enforces no change times.
-
-        Returns:
-            list: An empty list, as expected by the parent pseudoclock.
-        """
-        # Return an empty list as the calling function at the pseudoclock level expects
-        # a list
-        return []
-
-    def make_timeseries(self, change_times):
-        """Since output is static, does nothing."""
-        pass
-    
-    def expand_timeseries(self, *args, **kwargs):
-        """Defines the `raw_output` attribute.
-        """
-        self.raw_output = np.array([self.static_value], dtype=self.dtype)
-
-    @property
-    def static_value(self):
-        """float: The value of the static output."""
-        if self._static_value is None:
-            if not compiler.suppress_mild_warnings and not compiler.suppress_all_warnings:
-                sys.stderr.write(
-                    f"WARNING: {self.name} has no value set. It will be set to "
-                    f"{self.instruction_to_string(self.default_value)}.\n"
-                )
-            self._static_value = self.default_value
-        return self._static_value
 
 
 class StaticDigitalOut(StaticDigitalQuantity):
