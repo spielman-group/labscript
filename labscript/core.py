@@ -124,6 +124,8 @@ class Pseudoclock(Device):
     """
     description = "Generic Pseudoclock"
     allowed_children = [ClockLine]
+    max_clock_lines = None
+    """int: How many clock lines this pseudoclock can drive, or `None` for any number."""
     
     @set_passed_properties(property_names = {})
     def __init__(self, name, pseudoclock_device, connection, **kwargs):
@@ -140,6 +142,16 @@ class Pseudoclock(Device):
         self.clock_resolution = pseudoclock_device.clock_resolution
         
     def add_device(self, device):
+        if (
+            self.max_clock_lines is not None
+            and isinstance(device, ClockLine)
+            and len(self.child_devices) >= self.max_clock_lines
+        ):
+            raise LabscriptError(
+                f"{self.name} can drive only {self.max_clock_lines} clock line(s), so "
+                f"{device.name} cannot be added. Use the clock line "
+                f"{self.parent_device.name} provides instead."
+            )
         Device.add_device(self, device)
         #TODO: Maybe verify here that device.connection (the ClockLine connection) is a valid connection of the parent PseudoClockDevice
         #      Also see the same comment in ClockLine.__init__
@@ -724,6 +736,8 @@ class PseudoclockDevice(TriggerableDevice):
     """Device that implements a pseudoclock."""
     description = "Generic Pseudoclock Device"
     allowed_children = [Pseudoclock]
+    max_pseudoclocks = None
+    """int: How many pseudoclocks this device has, or `None` for any number."""
     trigger_edge_type = "rising"
     # How long after a trigger the next instruction is actually output:
     trigger_delay = 0
@@ -775,6 +789,20 @@ class PseudoclockDevice(TriggerableDevice):
         self.trigger_times = []
         self.wait_times = []
         self.initial_trigger_time = 0
+
+    def add_device(self, device):
+        if (
+            self.max_pseudoclocks is not None
+            and isinstance(device, Pseudoclock)
+            and sum(isinstance(d, Pseudoclock) for d in self.child_devices)
+            >= self.max_pseudoclocks
+        ):
+            raise LabscriptError(
+                f"{self.description} {self.name} has only {self.max_pseudoclocks} "
+                f"pseudoclock(s), which it makes itself, so {device.name} cannot be "
+                "added."
+            )
+        super().add_device(device)
 
     @property    
     def is_master_pseudoclock(self):
