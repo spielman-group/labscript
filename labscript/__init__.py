@@ -11,6 +11,6 @@
 #                                                                   #
 #####################################################################
 from labscript.labscript import *
-from labscript_utils.versions import package_version
+import labscript_utils.versions
 
-__version__ = package_version(__package__)
+__version__ = labscript_utils.versions.package_version(__package__)
