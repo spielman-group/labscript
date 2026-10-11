@@ -85,6 +85,7 @@ that matches.
   labscript-devices' `QuickSynDDS(StaticDDS)` overrides the constructor and
   `enable`, so it is unaffected.
 - Other owners: none.
+- **Outcome:** Done, 1096e13, as a shared base `_DDSBase` that `DDSQuantity` and `StaticDDS` both derive from (Ian's choice), so `StaticDDS` inherits no `pulse`. NovaTechDDS9M, QuickSynDDS and PulseBlasterDDS shots compile identically before and after.
 
 #### 2. `StaticAnalogQuantity` and `StaticDigitalQuantity` repeat their static machinery
 
@@ -103,6 +104,7 @@ that matches.
 - Visible: no. Behaviour, class names and `isinstance` results against the
   existing classes are unchanged.
 - Other owners: none.
+- **Outcome:** Done, 8190a64: `_StaticQuantity`.
 
 #### 3. `AnalogQuantity`'s ten ramp methods each build the same instruction
 
@@ -122,6 +124,7 @@ that matches.
 - Core lines: about 75 saved.
 - Visible: no; the instructions written are the same.
 - Other owners: none.
+- **Outcome:** Done, a6c9262, along Ian's direction that every ramp is an instance of customramp: all ten build their instruction through `Output._add_ramp`, the path customramp uses, placed on `Output` so a digital quantity could use it later. Calling the public `customramp` itself would have renamed every instruction to "custom ramp: ...", which reaches users in collision errors, so the shared path is its private core. `ramp`'s shortcut when `initial == final`, and each method's own truncation check, stay in the methods. The ramp shots compile identically.
 
 #### 4. `load_globals` repeats `get_shot_globals`' conversions and `Device`'s name checks
 
@@ -145,6 +148,7 @@ that matches.
   script would see this only by catching `ValueError` around a bad device
   name; no repo does. Values reach the script converted as before.
 - Other owners: none.
+- **Outcome:** Done, 50e702d. Both checks now test the caller's module namespace and builtins, as before, but no longer the checking function's own local variables, so a device named `start_order` or a global named `hdf5_filename` is now accepted. A global's error no longer names the shot file.
 
 #### 5. `max_or_zero` is `max(..., default=0)`
 
@@ -158,6 +162,7 @@ that matches.
 - Visible: `labscript.py` imports `max_or_zero`, so `from labscript import *`
   hands it to every script. No repo uses it; a lab's own script could.
 - Other owners: none.
+- **Outcome:** Done, cd41658: the callers use `max(..., default=0)`, and `max_or_zero` stays with a FutureWarning (Ian), since lab scripts may use it.
 
 #### 6. `_builtins_dict` is defined three times
 
@@ -166,6 +171,7 @@ that matches.
 - Proposal: keep `compiler.py`'s and import it in the other two.
 - Core lines: 2 saved. Visible: no; the name is private.
 - Other owners: none.
+- **Outcome:** Done, 50e702d.
 
 #### 7. `suppress_mild_warnings` and `suppress_all_warnings` share one body
 
@@ -176,6 +182,7 @@ that matches.
   indirection to two public functions a user reads.
 - Core lines: 0.
 - Other owners: none.
+- **Outcome:** Left (Ian). Separately, both now restore their flag in `try`/`finally`, bab9b12.
 
 #### 8. `Device` initialises `_properties` in two places
 
@@ -186,6 +193,7 @@ that matches.
   constructor that sets a property before calling it. Whether any caller does,
   and so whether one place can serve, is step 3's question, root causes.
 - Core lines: 0 now.
+- **Outcome:** Left for step 3.
 
 #### 9. `is_remote_connection`, `is_clock_line` and `is_pseudoclock_device` repeat one pattern
 
@@ -195,6 +203,7 @@ that matches.
   between `Device` and its subclasses, so the question is whether that cycle
   can go.
 - Core lines: 0 now.
+- **Outcome:** Left for step 3.
 
 ### Between labscript and other repos
 
@@ -224,6 +233,7 @@ The candidates came from the librarian, whose two subagents read every copy at
 - Core lines: about 15 added in labscript, about 100 saved in labscript-devices.
 - Visible: the error a user sees on miswiring a clock line changes its wording.
 - Other owners: labscript-devices.
+- **Outcome:** Done: labscript 2627de4 and 10bdafd, with a test; labscript-devices e806548 drops the overrides. The wait-monitor chain was not asked for.
 
 #### 11. Pseudoclock devices write `is_master_pseudoclock` and `stop_time` themselves
 
@@ -241,6 +251,7 @@ The candidates came from the librarian, whose two subagents read every copy at
   "not master" (the dummy's worker comments that it may be absent), so each
   worker's read must be checked first.
 - Other owners: labscript-devices.
+- **Outcome:** On hold for Ian. `Device.set_property` raises on a property already set, and every pseudoclock device that writes `stop_time` does so after `PseudoclockDevice.generate_code` has run, so labscript writing it would break those six devices and any a lab has written. No worker treats a missing `stop_time` as "not master": all six write it unconditionally.
 
 #### 12. The connection table's layout is spelled out by its writer and readers
 
@@ -259,6 +270,7 @@ The candidates came from the librarian, whose two subagents read every copy at
   `connections.py` but not in `properties.get`.
 - Core lines: 0 in labscript.
 - Other owners: blacs and labscript-utils, for their findings only.
+- **Outcome:** Left (Ian). The blacs and labscript-utils findings went to the coordinator.
 
 #### 13. Unit constants are defined in labscript and runmanager
 
@@ -268,6 +280,7 @@ The candidates came from the librarian, whose two subagents read every copy at
   so sharing means a new labscript-utils module to save 8 lines.
 - Core lines: 0.
 - Other owners: none, unless Ian wants them shared.
+- **Outcome:** Left (Ian).
 
 #### 14. Smaller overlaps, left alone
 
@@ -286,6 +299,7 @@ The candidates came from the librarian, whose two subagents read every copy at
 - The script name is written by runmanager (`script_basename`) and by labscript
   (the `script` dataset's `name`), which lyse reads. Different writers at
   different times.
+- **Outcome:** Left (Ian).
 
 ## Seen for later steps
 
@@ -314,3 +328,8 @@ Each was re-checked on `CodeHealth` at 3510de2. All are upstream's code.
   - `core.py:77`, 107 and 144: TODO comments, the last half-written.
   - `tests/test_compile_shot.py`'s module docstring and
     `docs/labscript-dev/intermediatedevice_example.py:105-111` narrate history.
+  - The API pages no longer show `enable` and `disable` on `DDSQuantity` and
+    `StaticDDS`, nor the static members on the static quantities, since the
+    autosummary class template (`docs/source/_templates/autosummary-class.rst`)
+    omits `:inherited-members:`. Inferred from the template; the docs were not
+    built.
