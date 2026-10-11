@@ -29,7 +29,6 @@ from labscript import (
 from labscript_devices.PulseBlaster import PulseBlaster
 from labscript_devices.NI_DAQmx.labscript_devices import NI_PCIe_6363
 from labscript_devices.NovaTechDDS9M import NovaTechDDS9M
-from labscript_devices.Camera import Camera
 from labscript_devices.PineBlaster import PineBlaster
 from labscript_devices.NI_DAQmx.labscript_devices import NI_PCI_6733
 from labscript_utils.unitconversions import example1, example2, example3
@@ -56,19 +55,6 @@ NovaTechDDS9M(
     name="novatechdds9m_0",
     parent_device=pulseblaster_0_clockline_slow,
     com_port="com10",
-)
-
-# Create a BIAS Camera, tirggered to take photos with flag 3 of pulseblaster_0
-Camera(
-    name="andor_ixon_0",
-    parent_device=pulseblaster_0.direct_outputs,
-    connection="flag 3",
-    BIAS_port=42520,
-    serial_number="0000",
-    SDK="IMAQdx",
-    effective_pixel_size=4.6e-6,
-    exposure_time=0.1,
-    orientation="top",
 )
 
 # A second pseudoclock to just clock a NI_PCI_6733 Card
@@ -239,10 +225,6 @@ t += max(1, analog0.t0)
 shutter2.open(t=t)
 dds3.enable(t=t)
 analog0.ramp(t=t, duration=2, initial=2, final=3, samplerate=rate)
-
-# Take a picture
-andor_ixon_0.expose(name='exposure_1', t=t, frametype='flat')
-andor_ixon_0.expose(name='exposure_1', t=t + 1, frametype='atoms')
 
 # Do some more things at various times!
 # (these are ignoring the t variable)
