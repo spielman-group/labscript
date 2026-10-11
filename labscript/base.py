@@ -13,14 +13,13 @@
 
 """The labscript base class for all I/O/Device classes"""
 
-import builtins
 import keyword
 
 import numpy as np
 
 import labscript_utils.properties
 
-from .compiler import compiler
+from .compiler import compiler, _builtins_dict
 from .utils import (
     LabscriptError,
     is_clock_line,
@@ -29,9 +28,24 @@ from .utils import (
     set_passed_properties
 )
 
-# Create a reference to the builtins dict 
-# update this if accessing builtins ever changes
-_builtins_dict = builtins.__dict__
+
+def _check_name(name, namespace, kind):
+    """Raise unless `name` can be put into builtins as the name of a new `kind`."""
+    if name in namespace or name in _builtins_dict:
+        raise LabscriptError(
+            f"{name} is already a name used by Python or labscript. "
+            f"Please choose another name for this {kind}."
+        )
+    if keyword.iskeyword(name):
+        raise LabscriptError(
+            f"{name} is a reserved Python keyword. "
+            f"Please choose another name for this {kind}."
+        )
+    if not name.isidentifier():
+        raise LabscriptError(
+            f"{name} is not a valid Python variable name. "
+            f"Please choose another name for this {kind}."
+        )
 
 
 class Device(object):
@@ -124,22 +138,7 @@ class Device(object):
             # on, it is not optional.
             parent_device.add_device(self)
 
-        # Check that the name doesn't already exist in the python namespace
-        if name in locals() or name in globals() or name in _builtins_dict:
-            raise LabscriptError(
-                f"{name} already exists in the Python namespace. "
-                f"Please choose another name for this {self.__class__.__name__}."
-            )
-        if keyword.iskeyword(name):
-            raise LabscriptError(
-                f"{name} is a reserved Python keyword. "
-                f"Please choose a different {self.__class__.__name__} name."
-            )
-
-        # Test that name is a valid Python variable name:
-        if not name.isidentifier():
-            raise ValueError(f"{name} is not a valid Python variable name.")
-
+        _check_name(name, globals(), self.__class__.__name__)
         # Put self into the global namespace:
         _builtins_dict[name] = self
         

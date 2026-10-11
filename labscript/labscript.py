@@ -55,8 +55,8 @@ except ImportError:
     sys.stderr.write('Warning: Failed to import unit conversion classes\n')
 
 # Imports to maintain backwards compatibility with previous module interface
-from .base import Device
-from .compiler import compiler
+from .base import Device, _check_name
+from .compiler import compiler, _builtins_dict
 from .constants import *
 from .core import (
     ClockLine,
@@ -91,10 +91,6 @@ from .utils import (
     suppress_all_warnings,
     suppress_mild_warnings
 )
-
-# Create a reference to the builtins dict 
-# update this if accessing builtins ever changes
-_builtins_dict = builtins.__dict__
     
 # Startupinfo, for ensuring subprocesses don't launch with a visible command window:
 if os.name=='nt':
@@ -712,29 +708,9 @@ def stop(t, target_cycle_time=None, cycle_time_delay_after_programming=False):
 def load_globals(hdf5_filename):
     import labscript_utils.shot_utils
     params = labscript_utils.shot_utils.get_shot_globals(hdf5_filename)
-    with h5py.File(hdf5_filename,'r') as hdf5_file:
-        for name in params.keys():
-            if name in globals() or name in locals() or name in _builtins_dict:
-                raise LabscriptError('Error whilst parsing globals from %s. \'%s\''%(hdf5_filename,name) +
-                                     ' is already a name used by Python, labscript, or Pylab.'+
-                                     ' Please choose a different variable name to avoid a conflict.')
-            if name in keyword.kwlist:
-                raise LabscriptError('Error whilst parsing globals from %s. \'%s\''%(hdf5_filename,name) +
-                                     ' is a reserved Python keyword.' +
-                                     ' Please choose a different variable name.')
-            if not name.isidentifier():
-                raise LabscriptError('Error whilst parsing globals from %s. \'%s\''%(hdf5_filename,name) +
-                                     ' is not a valid Python variable name.' +
-                                     ' Please choose a different variable name.')
-
-            # Workaround for the fact that numpy.bool_ objects dont 
-            # match python's builtin True and False when compared with 'is':
-            if type(params[name]) == np.bool_:
-                params[name] = bool(params[name])
-            # 'None' is stored as an h5py null object reference:
-            if isinstance(params[name], h5py.Reference) and not params[name]:
-                params[name] = None
-            _builtins_dict[name] = params[name]
+    for name, value in params.items():
+        _check_name(name, globals(), 'global')
+        _builtins_dict[name] = value
             
 # TO_DELETE:runmanager-batchompiler-agnostic 
 #   load_globals_values=True            
