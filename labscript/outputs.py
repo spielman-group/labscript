@@ -1598,19 +1598,11 @@ class Trigger(DigitalOut):
         DigitalOut.add_device(self, device)
 
         
-class DDSQuantity(Device):
-    """Used to define a DDS output. 
+class _DDSBase(Device):
+    """Frequency, amplitude and phase channels of a DDS, and its optional gate.
 
-    It is a container class, with properties that allow access to a frequency,
-    amplitude, and phase of the output as :obj:`AnalogQuantity`. 
-    It can also have a gate, which provides enable/disable control of the output 
-    as :obj:`DigitalOut`.
-
-    This class instantiates channels for frequency/amplitude/phase (and optionally the
-    gate) itself. 
+    Subclasses name the class of the three channels in `channel_class`.
     """
-    description = 'DDS'
-    allowed_children = [AnalogQuantity, DigitalOut, DigitalQuantity]
 
     @set_passed_properties(property_names={})
     def __init__(
@@ -1631,7 +1623,7 @@ class DDSQuantity(Device):
         call_parents_add_device=True,
         **kwargs
     ):
-        """Instantiates a DDS quantity.
+        """Instantiates the channels, and the gate if one is given.
 
         Args:
             name (str): python variable for the object created.
@@ -1689,7 +1681,7 @@ class DDSQuantity(Device):
             if phase_conv_class is None:
                 phase_conv_class = default_phase_conv
 
-        self.frequency = AnalogQuantity(
+        self.frequency = self.channel_class(
             f"{self.name}_freq",
             self,
             "freq",
@@ -1697,7 +1689,7 @@ class DDSQuantity(Device):
             freq_conv_class,
             freq_conv_params,
         )
-        self.amplitude = AnalogQuantity(
+        self.amplitude = self.channel_class(
             f"{self.name}_amp",
             self,
             "amp",
@@ -1705,7 +1697,7 @@ class DDSQuantity(Device):
             amp_conv_class,
             amp_conv_params,
         )
-        self.phase = AnalogQuantity(
+        self.phase = self.channel_class(
             f"{self.name}_phase",
             self,
             "phase",
@@ -1741,36 +1733,6 @@ class DDSQuantity(Device):
         if call_parents_add_device:
             self.parent_device.add_device(self)
 
-    def setamp(self, t, value, units=None):
-        """Set the amplitude of the output.
-
-        Args:
-            t (float): Time, in seconds, when the amplitude is set.
-            value (float): Amplitude to set to.
-            units: Units that the value is defined in.
-        """
-        self.amplitude.constant(t, value, units)
-
-    def setfreq(self, t, value, units=None):
-        """Set the frequency of the output.
-
-        Args:
-            t (float): Time, in seconds, when the frequency is set.
-            value (float): Frequency to set to.
-            units: Units that the value is defined in.
-        """
-        self.frequency.constant(t, value, units)
-
-    def setphase(self, t, value, units=None):
-        """Set the phase of the output.
-
-        Args:
-            t (float): Time, in seconds, when the phase is set.
-            value (float): Phase to set to.
-            units: Units that the value is defined in.
-        """
-        self.phase.constant(t, value, units)
-
     def enable(self, t):
         """Enable the Output.
 
@@ -1802,6 +1764,52 @@ class DDSQuantity(Device):
                 "disable(t) method."
             )
         self.gate.go_low(t)
+
+
+class DDSQuantity(_DDSBase):
+    """Used to define a DDS output. 
+
+    It is a container class, with properties that allow access to a frequency,
+    amplitude, and phase of the output as :obj:`AnalogQuantity`. 
+    It can also have a gate, which provides enable/disable control of the output 
+    as :obj:`DigitalOut`.
+
+    This class instantiates channels for frequency/amplitude/phase (and optionally the
+    gate) itself. 
+    """
+    description = 'DDS'
+    allowed_children = [AnalogQuantity, DigitalOut, DigitalQuantity]
+    channel_class = AnalogQuantity
+
+    def setamp(self, t, value, units=None):
+        """Set the amplitude of the output.
+
+        Args:
+            t (float): Time, in seconds, when the amplitude is set.
+            value (float): Amplitude to set to.
+            units: Units that the value is defined in.
+        """
+        self.amplitude.constant(t, value, units)
+
+    def setfreq(self, t, value, units=None):
+        """Set the frequency of the output.
+
+        Args:
+            t (float): Time, in seconds, when the frequency is set.
+            value (float): Frequency to set to.
+            units: Units that the value is defined in.
+        """
+        self.frequency.constant(t, value, units)
+
+    def setphase(self, t, value, units=None):
+        """Set the phase of the output.
+
+        Args:
+            t (float): Time, in seconds, when the phase is set.
+            value (float): Phase to set to.
+            units: Units that the value is defined in.
+        """
+        self.phase.constant(t, value, units)
 
     def pulse(
         self,
@@ -1853,124 +1861,11 @@ class DDS(DDSQuantity):
     """DDS class for use with all devices that have DDS-like outputs."""
 
 
-class StaticDDS(Device):
+class StaticDDS(_DDSBase):
     """Static DDS class for use with all devices that have static DDS-like outputs."""
     description = "Static RF"
     allowed_children = [StaticAnalogQuantity,DigitalOut,StaticDigitalOut]
-
-    @set_passed_properties(property_names = {})
-    def __init__(
-        self,
-        name,
-        parent_device,
-        connection,
-        digital_gate=None,
-        freq_limits=None,
-        freq_conv_class=None,
-        freq_conv_params=None,
-        amp_limits=None,
-        amp_conv_class=None,
-        amp_conv_params=None,
-        phase_limits=None,
-        phase_conv_class=None,
-        phase_conv_params=None,
-        **kwargs,
-    ):
-        """Instantiates a Static DDS quantity.
-
-        Args:
-            name (str): python variable for the object created.
-            parent_device (:obj:`IntermediateDevice`): Device this output is
-                connected to.
-            connection (str): Output of parent device this DDS is connected to.
-            digital_gate (dict, optional): Configures a digital output to use as an enable/disable
-                gate for the output. Should contain keys `'device'` and `'connection'`
-                with arguments for the `parent_device` and `connection` for instantiating
-                the :obj:`DigitalOut`. All other (optional) keys are passed as kwargs.
-            freq_limits (tuple, optional): `(lower, upper)` limits for the 
-                frequency of the output
-            freq_conv_class (:obj:`labscript_utils:labscript_utils.unitconversions`, optional): 
-                Unit conversion class for the frequency of the output.
-            freq_conv_params (dict, optional): Keyword arguments passed to the 
-                unit conversion class for the frequency of the output.
-            amp_limits (tuple, optional): `(lower, upper)` limits for the 
-                amplitude of the output
-            amp_conv_class (:obj:`labscript_utils:labscript_utils.unitconversions`, optional): 
-                Unit conversion class for the amplitude of the output.
-            amp_conv_params (dict, optional): Keyword arguments passed to the 
-                unit conversion class for the amplitude of the output.
-            phase_limits (tuple, optional): `(lower, upper)` limits for the 
-                phase of the output
-            phase_conv_class (:obj:`labscript_utils:labscript_utils.unitconversions`, optional): 
-                Unit conversion class for the phase of the output.
-            phase_conv_params (dict, optional): Keyword arguments passed to the 
-                unit conversion class for the phase of the output.
-            call_parents_add_device (bool, optional): Have the parent device run
-                its `add_device` method.
-            **kwargs: Keyword arguments passed to :func:`Device.__init__`.
-        """
-        # We tell Device.__init__ to not call
-        # self.parent.add_device(self), we'll do that ourselves later
-        # after further intitialisation, so that the parent can see the
-        # freq/amp/phase objects and manipulate or check them from within
-        # its add_device method.
-        Device.__init__(
-            self, name, parent_device, connection, call_parents_add_device=False, **kwargs
-        )
-
-        # Ask the parent device if it has default unit conversion classes it would like us to use:
-        if hasattr(parent_device, 'get_default_unit_conversion_classes'):
-            classes = parent_device.get_default_unit_conversion_classes(self)
-            default_freq_conv, default_amp_conv, default_phase_conv = classes
-            # If the user has not overridden, use these defaults. If
-            # the parent does not have a default for one or more of amp,
-            # freq or phase, it should return None for them.
-            if freq_conv_class is None:
-                freq_conv_class = default_freq_conv
-            if amp_conv_class is None:
-                amp_conv_class = default_amp_conv
-            if phase_conv_class is None:
-                phase_conv_class = default_phase_conv
-
-        self.frequency = StaticAnalogQuantity(
-            f"{self.name}_freq",
-            self,
-            "freq",
-            freq_limits,
-            freq_conv_class,
-            freq_conv_params
-        )
-        self.amplitude = StaticAnalogQuantity(
-            f"{self.name}_amp",
-            self,
-            "amp",
-            amp_limits,
-            amp_conv_class,
-            amp_conv_params,
-        )
-        self.phase = StaticAnalogQuantity(
-            f"{self.name}_phase",
-            self,
-            "phase",
-            phase_limits,
-            phase_conv_class,
-            phase_conv_params,
-        )        
-
-        self.gate = None
-        digital_gate = digital_gate or {}
-        if "device" in digital_gate and "connection" in digital_gate:
-            dev = digital_gate.pop("device")
-            conn = digital_gate.pop("connection")
-            self.gate = DigitalOut(f"{name}_gate", dev, conn, **digital_gate)
-        # Did they only put one key in the dictionary, or use the wrong keywords?
-        elif len(digital_gate) > 0:
-            raise LabscriptError(
-                'You must specify the "device" and "connection" for the digital gate '
-                f"of {self.name}"
-            )
-        # Now we call the parent's add_device method. This is a must, since we didn't do so earlier from Device.__init__.
-        self.parent_device.add_device(self)
+    channel_class = StaticAnalogQuantity
 
     def setamp(self, value, units=None):
         """Set the static amplitude of the output.
@@ -1998,38 +1893,3 @@ class StaticDDS(Device):
             units: Units that the value is defined in.
         """
         self.phase.constant(value,units) 
-
-    def enable(self, t):
-        """Enable the Output.
-
-        Args:
-            t (float): Time, in seconds, to enable the output at.
-
-        Raises:
-            LabscriptError: If the DDS is not instantiated with a digital gate.
-        """        
-        if self.gate:
-            self.gate.go_high(t)
-        else:
-            raise LabscriptError(
-                f"DDS {self.name} does not have a digital gate, so you cannot use the "
-                "enable(t) method."
-            )
-
-    def disable(self, t):
-        """Disable the Output.
-
-        Args:
-            t (float): Time, in seconds, to disable the output at.
-
-        Raises:
-            LabscriptError: If the DDS is not instantiated with a digital gate.
-        """
-        if self.gate:
-            self.gate.go_low(t)
-        else:
-            raise LabscriptError(
-                f"DDS {self.name} does not have a digital gate, so you cannot use the "
-                "disable(t) method."
-            )
-
