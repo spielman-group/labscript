@@ -290,7 +290,24 @@ class Output(Device):
                         f"({self.limits[0]} to {self.limits[1]})"
                     )
         self.instructions[time] = instruction
-    
+
+    def _add_ramp(
+        self, t, duration, performed, description, samplerate, units, function, *args
+    ):
+        """Add a ramp from `t`, evaluating `function(duration, *args)` for the first
+        `performed` seconds of it."""
+        self.add_instruction(
+            t,
+            {
+                "function": function(round(t + duration, 10) - round(t, 10), *args),
+                "description": description,
+                "initial time": t,
+                "end time": t + performed,
+                "clock rate": samplerate,
+                "units": units,
+            },
+        )
+
     def do_checks(self, trigger_times):
         """Basic error checking to ensure the user's instructions make sense.
 
@@ -589,18 +606,9 @@ class AnalogQuantity(Output):
                         "output.\n"
                     )
             else:
-                self.add_instruction(
-                    t,
-                    {
-                        "function": functions.ramp(
-                            round(t + duration, 10) - round(t, 10), initial, final
-                        ),
-                        "description": "linear ramp",
-                        "initial time": t,
-                        "end time": t + truncation * duration,
-                        "clock rate": samplerate,
-                        "units": units,
-                    }
+                self._add_ramp(
+                    t, duration, truncation * duration, "linear ramp", samplerate,
+                    units, functions.ramp, initial, final,
                 )
         return truncation * duration
 
@@ -638,22 +646,9 @@ class AnalogQuantity(Output):
         """
         self._check_truncation(truncation)
         if truncation > 0:
-            self.add_instruction(
-                t,
-                {
-                    "function": functions.sine(
-                        round(t + duration, 10) - round(t, 10),
-                        amplitude,
-                        angfreq,
-                        phase,
-                        dc_offset,
-                    ),
-                    "description": "sine wave",
-                    "initial time": t,
-                    "end time": t + truncation*duration,
-                    "clock rate": samplerate,
-                    "units": units,
-                }
+            self._add_ramp(
+                t, duration, truncation*duration, "sine wave", samplerate, units,
+                functions.sine, amplitude, angfreq, phase, dc_offset,
             )
         return truncation*duration
 
@@ -680,18 +675,9 @@ class AnalogQuantity(Output):
         """
         self._check_truncation(truncation)
         if truncation > 0:
-            self.add_instruction(
-                t,
-                {
-                    "function": functions.sine_ramp(
-                        round(t + duration, 10) - round(t, 10), initial, final
-                    ),
-                    "description": "sinusoidal ramp",
-                    "initial time": t,
-                    "end time": t + truncation*duration,
-                    "clock rate": samplerate,
-                    "units": units,
-                }
+            self._add_ramp(
+                t, duration, truncation*duration, "sinusoidal ramp", samplerate, units,
+                functions.sine_ramp, initial, final,
             )
         return truncation*duration
 
@@ -718,18 +704,9 @@ class AnalogQuantity(Output):
         """
         self._check_truncation(truncation)
         if truncation > 0:
-            self.add_instruction(
-                t,
-                {
-                    "function": functions.sine4_ramp(
-                        round(t + duration, 10) - round(t, 10), initial, final
-                    ),
-                    "description": "sinusoidal ramp",
-                    "initial time": t,
-                    "end time": t + truncation*duration,
-                    "clock rate": samplerate,
-                    "units": units,
-                }
+            self._add_ramp(
+                t, duration, truncation*duration, "sinusoidal ramp", samplerate, units,
+                functions.sine4_ramp, initial, final,
             )
         return truncation*duration
 
@@ -756,18 +733,9 @@ class AnalogQuantity(Output):
         """
         self._check_truncation(truncation)
         if truncation > 0:
-            self.add_instruction(
-                t,
-                {
-                    "function": functions.sine4_reverse_ramp(
-                        round(t + duration, 10) - round(t, 10), initial, final
-                    ),
-                    "description": "sinusoidal ramp",
-                    "initial time": t,
-                    "end time": t + truncation*duration,
-                    "clock rate": samplerate,
-                    "units": units,
-                }
+            self._add_ramp(
+                t, duration, truncation*duration, "sinusoidal ramp", samplerate, units,
+                functions.sine4_reverse_ramp, initial, final,
             )
         return truncation*duration
 
@@ -830,18 +798,9 @@ class AnalogQuantity(Output):
         else:
             trunc_duration = duration
         if trunc_duration > 0:
-            self.add_instruction(
-                t,
-                {
-                    "function": functions.exp_ramp(
-                        round(t + duration, 10) - round(t, 10), initial, final, zero
-                    ),
-                    "description": 'exponential ramp',
-                    "initial time": t,
-                    "end time": t + trunc_duration,
-                    "clock rate": samplerate,
-                    "units": units,
-                }
+            self._add_ramp(
+                t, duration, trunc_duration, 'exponential ramp', samplerate, units,
+                functions.exp_ramp, initial, final, zero,
             )
         return trunc_duration
 
@@ -900,21 +859,10 @@ class AnalogQuantity(Output):
         else:
             trunc_duration = duration
         if trunc_duration > 0:
-            self.add_instruction(
-                t,
-                {
-                    "function": functions.exp_ramp_t(
-                        round(t + duration, 10) - round(t, 10),
-                        initial,
-                        final,
-                        time_constant,
-                    ),
-                    "description": "exponential ramp with time consntant",
-                    "initial time": t,
-                    "end time": t + trunc_duration,
-                    "clock rate": samplerate,
-                    "units": units,
-                }
+            self._add_ramp(
+                t, duration, trunc_duration, "exponential ramp with time consntant",
+                samplerate, units,
+                functions.exp_ramp_t, initial, final, time_constant,
             )
         return trunc_duration
 
@@ -937,18 +885,10 @@ class AnalogQuantity(Output):
         """
         self._check_truncation(truncation)
         if truncation > 0:
-            self.add_instruction(
-                t,
-                {
-                    "function": functions.piecewise_accel(
-                        round(t + duration, 10) - round(t, 10), initial, final
-                    ),
-                    "description": "piecewise linear accelleration ramp",
-                    "initial time": t,
-                    "end time": t + truncation*duration,
-                    "clock rate": samplerate,
-                    "units": units,
-                }
+            self._add_ramp(
+                t, duration, truncation*duration, "piecewise linear accelleration ramp",
+                samplerate, units,
+                functions.piecewise_accel, initial, final,
             )
         return truncation*duration
 
@@ -1122,25 +1062,9 @@ class AnalogQuantity(Output):
             )
 
         if truncation > 0:
-            # Add the instruction.
-            func = functions.square_wave(
-                round(t + duration, 10) - round(t, 10),
-                level_0,
-                level_1,
-                frequency,
-                phase,
-                duty_cycle,
-            )
-            self.add_instruction(
-                t,
-                {
-                    "function": func,
-                    "description": "square wave",
-                    "initial time": t,
-                    "end time": t + truncation * duration,
-                    "clock rate": samplerate,
-                    "units": units,
-                }
+            self._add_ramp(
+                t, duration, truncation * duration, "square wave", samplerate, units,
+                functions.square_wave, level_0, level_1, frequency, phase, duty_cycle,
             )
         return truncation * duration
 
@@ -1167,24 +1091,14 @@ class AnalogQuantity(Output):
         truncation = kwargs.pop("truncation", 1.)
         self._check_truncation(truncation)
 
-        def custom_ramp_func(t_rel):
-            """The function that will return the result of the user's function,
-            evaluated at relative times t_rel from 0 to duration"""
-            return function(
-                t_rel, round(t + duration, 10) - round(t, 10), *args, **kwargs
-            )
+        def custom_ramp_func(duration):
+            """The user's function, at relative times t_rel from 0 to duration."""
+            return lambda t_rel: function(t_rel, duration, *args, **kwargs)
 
         if truncation > 0:
-            self.add_instruction(
-                t,
-                {
-                    "function": custom_ramp_func,
-                    "description": f"custom ramp: {function.__name__}",
-                    "initial time": t,
-                    "end time": t + truncation*duration,
-                    "clock rate": samplerate,
-                    "units": units,
-                }
+            self._add_ramp(
+                t, duration, truncation*duration, f"custom ramp: {function.__name__}",
+                samplerate, units, custom_ramp_func,
             )
         return truncation*duration
 
