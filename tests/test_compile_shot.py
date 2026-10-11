@@ -102,7 +102,7 @@ class CompileTests(unittest.TestCase):
         finally:
             labscript.labscript_cleanup()
 
-    def test_a_shot_using_markers_waits_and_a_shutter_compiles(self):
+    def test_a_compiled_shot_file_holds_its_markers_and_waits(self):
         self.compile_the_shot()
 
         with h5py.File(self.run_file, 'r') as f:
