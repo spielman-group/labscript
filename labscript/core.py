@@ -142,15 +142,15 @@ class Pseudoclock(Device):
         self.clock_resolution = pseudoclock_device.clock_resolution
         
     def add_device(self, device):
+        clock_lines = [d.name for d in self.child_devices if isinstance(d, ClockLine)]
         if (
             self.max_clock_lines is not None
             and isinstance(device, ClockLine)
-            and len(self.child_devices) >= self.max_clock_lines
+            and len(clock_lines) >= self.max_clock_lines
         ):
             raise LabscriptError(
                 f"{self.name} can drive only {self.max_clock_lines} clock line(s), so "
-                f"{device.name} cannot be added. Use the clock line "
-                f"{self.parent_device.name} provides instead."
+                f"{device.name} cannot be added. Use {', '.join(clock_lines)} instead."
             )
         Device.add_device(self, device)
         #TODO: Maybe verify here that device.connection (the ClockLine connection) is a valid connection of the parent PseudoClockDevice
@@ -791,16 +791,18 @@ class PseudoclockDevice(TriggerableDevice):
         self.initial_trigger_time = 0
 
     def add_device(self, device):
+        pseudoclocks = [
+            d.name for d in self.child_devices if isinstance(d, Pseudoclock)
+        ]
         if (
             self.max_pseudoclocks is not None
             and isinstance(device, Pseudoclock)
-            and sum(isinstance(d, Pseudoclock) for d in self.child_devices)
-            >= self.max_pseudoclocks
+            and len(pseudoclocks) >= self.max_pseudoclocks
         ):
             raise LabscriptError(
-                f"{self.description} {self.name} has only {self.max_pseudoclocks} "
-                f"pseudoclock(s), which it makes itself, so {device.name} cannot be "
-                "added."
+                f"{self.description} {self.name} can have only "
+                f"{self.max_pseudoclocks} pseudoclock(s), so {device.name} cannot be "
+                f"added. Use {', '.join(pseudoclocks)} instead."
             )
         super().add_device(device)
 

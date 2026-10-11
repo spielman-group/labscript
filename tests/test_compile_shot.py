@@ -152,6 +152,22 @@ class CompileTests(unittest.TestCase):
         with self.assertRaises(labscript.LabscriptError):
             self.compile_the_shot()
 
+    def test_a_pseudoclock_refuses_children_beyond_its_limit(self):
+        for extra in (
+            "ClockLine(name='extra', pseudoclock=pseudoclock.pseudoclock, "
+            "connection='flag 1')",
+            "type(pseudoclock.pseudoclock)(name='extra', "
+            "pseudoclock_device=pseudoclock, connection='clock 2')",
+        ):
+            with self.subTest(extra=extra):
+                with open(self.script, 'w') as f:
+                    f.write(
+                        'from labscript import ClockLine\n'
+                        + SHOT.replace('stop(t)\n', f'{extra}\nstop(t)\n')
+                    )
+                with self.assertRaises(labscript.LabscriptError):
+                    self.compile_the_shot()
+
 
 if __name__ == '__main__':
     unittest.main()
