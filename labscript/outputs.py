@@ -1092,7 +1092,6 @@ class AnalogQuantity(Output):
         self._check_truncation(truncation)
 
         def custom_ramp_func(duration):
-            """The user's function, at relative times t_rel from 0 to duration."""
             return lambda t_rel: function(t_rel, duration, *args, **kwargs)
 
         if truncation > 0:
@@ -1135,8 +1134,6 @@ class _StaticQuantity:
         Returns:
             list: An empty list, as expected by the parent pseudoclock.
         """
-        # Return an empty list as the calling function at the pseudoclock level expects
-        # a list
         return []
 
     def make_timeseries(self,change_times):
@@ -1216,7 +1213,6 @@ class StaticAnalogQuantity(_StaticQuantity, Output):
                 f"{self._static_value} (base units). It cannot also be set to "
                 f"{value} ({units if units is not None else 'base units'})."
             )
-
 
 
 class StaticAnalogOut(StaticAnalogQuantity):
@@ -1382,7 +1378,6 @@ class StaticDigitalQuantity(_StaticQuantity, DigitalQuantity):
             )
         self.add_instruction(0, value)
         self._static_value = value
-
 
 
 class StaticDigitalOut(StaticDigitalQuantity):

@@ -175,6 +175,8 @@ def fastflatten(inarray, dtype):
 
 def max_or_zero(*args, **kwargs):
     """Returns max of the arguments or zero if sequence is empty.
+
+    Deprecated: use ``max(..., default=0)``.
     
     This protects the call to `max()` which would normally throw an error on an empty
     sequence.
