@@ -1,8 +1,3 @@
-.. labscript documentation master file, created by
-   sphinx-quickstart on Mon Dec 08 14:26:41 2014.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 labscript |version|
 ===================
 
@@ -35,7 +30,3 @@ labscript |version|
    PyPI <https://pypi.org/project/labscript/>
    Anaconda Cloud <https://anaconda.org/labscript-suite/labscript>
    BitBucket Archive <http://bitbucket-archive.labscriptsuite.org/#!/labscript_suite/labscript>
-
-.. todolist:: 
-
-
