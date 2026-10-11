@@ -550,11 +550,11 @@ def trigger_all_pseudoclocks(t='initial'):
     # can command output from devices on the master clock immediately,
     # but unless things are time critical, they can wait this long and
     # know for sure all devices can receive instructions:
-    max_delay_time = max_or_zero([pseudoclock.trigger_delay for pseudoclock in compiler.all_pseudoclocks if not pseudoclock.is_master_pseudoclock])
+    max_delay_time = max([pseudoclock.trigger_delay for pseudoclock in compiler.all_pseudoclocks if not pseudoclock.is_master_pseudoclock], default=0)
     # On the other hand, perhaps the trigger duration and clock limit of the master clock is
     # limiting when we can next give devices instructions:
     # So find the max of 1.0/clock_limit of every clockline on every pseudoclock of the master pseudoclock
-    master_pseudoclock_delay = max(1.0/compiler.master_pseudoclock.clock_limit, max_or_zero([1.0/clockline.clock_limit for pseudoclock in compiler.master_pseudoclock.child_devices for clockline in pseudoclock.child_devices]))
+    master_pseudoclock_delay = max(1.0/compiler.master_pseudoclock.clock_limit, max([1.0/clockline.clock_limit for pseudoclock in compiler.master_pseudoclock.child_devices for clockline in pseudoclock.child_devices], default=0))
     max_delay = max(compiler.trigger_duration + master_pseudoclock_delay, max_delay_time)    
     return max_delay + wait_delay
     
@@ -625,7 +625,7 @@ def start():
         (master_pseudoclock,) = master_pseudoclocks
         compiler.master_pseudoclock = master_pseudoclock
         # Which pseudoclock requires the longest pulse in order to trigger it?
-        compiler.trigger_duration = max_or_zero([pseudoclock.trigger_minimum_duration for pseudoclock in pseudoclocks if not pseudoclock.is_master_pseudoclock])
+        compiler.trigger_duration = max([pseudoclock.trigger_minimum_duration for pseudoclock in pseudoclocks if not pseudoclock.is_master_pseudoclock], default=0)
         
         trigger_clock_limits = [pseudoclock.trigger_device.clock_limit for pseudoclock in pseudoclocks if not pseudoclock.is_master_pseudoclock]
         if len(trigger_clock_limits) > 0:
@@ -652,7 +652,7 @@ def start():
         # Provide this, or the minimum possible pulse, whichever is longer:
         compiler.trigger_duration = max(2.0/min_clock_limit, compiler.trigger_duration) + 2*master_pseudoclock.clock_resolution
         # Must wait this long before providing a trigger, in case child clocks aren't ready yet:
-        compiler.wait_delay = max_or_zero([pseudoclock.wait_delay for pseudoclock in pseudoclocks if not pseudoclock.is_master_pseudoclock])
+        compiler.wait_delay = max([pseudoclock.wait_delay for pseudoclock in pseudoclocks if not pseudoclock.is_master_pseudoclock], default=0)
         
         # Have the master clock trigger pseudoclocks at t = 0:
         max_delay = trigger_all_pseudoclocks()

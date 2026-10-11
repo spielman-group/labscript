@@ -16,6 +16,7 @@
 import contextlib
 from inspect import getcallargs
 from functools import wraps
+import warnings
 
 import numpy as np
 
@@ -185,6 +186,11 @@ def max_or_zero(*args, **kwargs):
     Returns:
         : Max of *args.
     """
+    warnings.warn(
+        "max_or_zero will be removed from labscript; use max(..., default=0).",
+        FutureWarning,
+        stacklevel=2,
+    )
     if not args:
         return 0
     if not args[0]:
