@@ -291,7 +291,7 @@ The agreed plan, to be built in a later session. Nothing is changed yet.
 - Open, for Ian, before or with this work: the shot ends when the last
   pseudoclock finishes, not the master, and nothing ensures that.
   - labscript gives every pseudoclock device the same nominal end, the time
-    passed to `stop()`, and refuses an instruction after it (`core.py:519`).
+    passed to `stop()`, and refuses an instruction after it (`core.py:520`).
   - But a triggered pseudoclock runs on its own clock. It can physically
     finish after the master, through drift between free-running oscillators,
     trigger latency not modelled, or a closing instruction its hardware needs.
