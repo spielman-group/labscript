@@ -117,9 +117,10 @@ def set_passed_properties(property_names=None):
             # Get a dict of the call arguments/keyword arguments by name:
             call_values = getcallargs(func, inst, *args, **kwargs)
 
-            all_property_names = set()
-            for names in property_names.values():
-                all_property_names.update(names)
+            # In declaration order, so that a shot file's bytes are reproducible:
+            all_property_names = dict.fromkeys(
+                name for names in property_names.values() for name in names
+            )
 
             property_values = {}
             for name in all_property_names:
