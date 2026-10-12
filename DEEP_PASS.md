@@ -297,8 +297,10 @@ The agreed plan, to be built in a later session. Nothing is changed yet.
     trigger latency not modelled, or a closing instruction its hardware needs.
   - BLACS starts the master and declares the shot over when the master's
     worker alone reports done (`blacs/shot_execution.py:942-955`). It then
-    moves every device to manual, so a secondary still running would be cut
-    short.
+    moves every device to manual. Whether a secondary still running is cut
+    short depends on its worker: many block in `transition_to_manual` until
+    their hardware has finished. Which secondary-pseudoclock workers do is
+    not yet surveyed; that is labscript-devices' question.
   - The progress bar likewise shows the master's `stop_time` as the shot's
     length.
   - A fix belongs to BLACS: for example, wait for every pseudoclock device's
