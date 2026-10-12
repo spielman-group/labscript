@@ -237,21 +237,78 @@ The candidates came from the librarian, whose two subagents read every copy at
 
 #### 11. Pseudoclock devices write `is_master_pseudoclock` and `stop_time` themselves
 
-- Copies: `set_property` of both in `CiceroOpalKellyXEM3001.py:252-253`,
-  `DummyPseudoclock/labscript_devices.py:118-123`, `PineBlaster.py:112-113` and
-  `PrawnBlaster/labscript_devices.py:473-478`; of `stop_time` alone in
-  `PulseBlaster.py:615` and `PulseBlaster_No_DDS.py:43`. Five devices make
-  their group with `create_group` rather than `Device.init_device_group`
-  (`base.py:470`).
-- Should it exist: yes; BLACS reads `stop_time` to know how long a shot runs.
-- Proposal: `PseudoclockDevice.generate_code` writes both properties, and the
-  devices drop theirs and use `init_device_group`.
-- Core lines: about 4 added in labscript, about 15 saved in labscript-devices.
-- Visible: only if a device's worker reads the absence of `stop_time` to mean
-  "not master" (the dummy's worker comments that it may be absent), so each
-  worker's read must be checked first.
-- Other owners: labscript-devices.
-- **Outcome:** On hold for Ian. `Device.set_property` raises on a property already set, and every pseudoclock device that writes `stop_time` does so after `PseudoclockDevice.generate_code` has run, so labscript writing it would break those six devices and any a lab has written. No worker treats a missing `stop_time` as "not master": all six write it unconditionally.
+The agreed plan, to be built in a later session. Nothing is changed yet.
+
+- The problem: BLACS, runviewer and the device workers need two timing facts
+  about every pseudoclock device, both of which labscript computes:
+  - `stop_time`, its program's nominal end in its own time base. `stop()` gives
+    every pseudoclock device the same end, and
+    `PseudoclockDevice.offset_instructions_from_trigger` converts a secondary's
+    into its own time base. BLACS's progress bar and runviewer read the
+    master's; the dummy and PulseBlaster workers read their own.
+  - `is_master_pseudoclock`, which the Cicero, PineBlaster and PrawnBlaster
+    workers read, for example to decide which acts as the wait monitor.
+- The cause: labscript computes both facts but leaves recording them to each
+  device class, by convention, with nothing to enforce it. So six devices copy
+  the same lines into their `generate_code` (Cicero, Dummy, PineBlaster and
+  PrawnBlaster both facts; PulseBlaster and PulseBlaster_No_DDS `stop_time`
+  only), and two record neither: RFBlaster and PrawnDO. PrawnDO is a
+  pseudoclock in labscript's sense: a PrawnBlaster-based digital output board
+  that subclasses `PseudoclockDevice`, runs its own program on its own clock
+  and is triggered like a secondary. Read from the code, not run: runviewer
+  and the progress bar would raise `KeyError` on a shot whose master is either
+  of these two.
+- The rule: a fact belongs to whoever computes it. labscript records what it
+  computes; a device class records only what it computes about its own
+  hardware.
+- The plan:
+  1. labscript: `PseudoclockDevice.generate_code` records both properties for
+     every pseudoclock device, straight after `offset_instructions_from_trigger`
+     has fixed `stop_time`. Every device already calls it first, since it also
+     runs the checks and the trigger offsets.
+  2. labscript: the two names belong to labscript. A pseudoclock device class
+     that sets either fails at compile time, before anything reaches hardware,
+     with an error naming the class and the property, saying that labscript
+     records both for every pseudoclock device, and telling the author to
+     delete the `set_property` call and where the docs explain it. It replaces
+     the generic "set more than once" error, whichever side writes second.
+     Pseudoclock devices written outside this install are not kept compatible;
+     they get this error on their first compile.
+  3. labscript: the device-writing guide in `docs/` gains a section on what
+     labscript records for every pseudoclock device, that device classes must
+     not set it, and what to delete when upgrading an old device.
+  4. labscript: one test, that a pseudoclock device setting `stop_time` itself
+     is refused with that error.
+  5. labscript-devices: delete the six copies, landing together with 1 and 2,
+     since either alone breaks the six devices. RFBlaster and PrawnDO need no
+     change: they gain both properties. Five devices also make their group
+     with `create_group` rather than `Device.init_device_group` (`base.py:470`);
+     they can switch in the same edit.
+  6. blacs and runviewer: no change; they read the same properties as now.
+- Not chosen: recording the shot's length among the shot properties beside
+  `target_cycle_time`. That would hold the master's `stop_time` twice, and
+  runviewer would need a fallback for archived shot files.
+- Open, for Ian, before or with this work: the shot ends when the last
+  pseudoclock finishes, not the master, and nothing ensures that.
+  - labscript gives every pseudoclock device the same nominal end, the time
+    passed to `stop()`, and refuses an instruction after it (`core.py:519`).
+  - But a triggered pseudoclock runs on its own clock. It can physically
+    finish after the master, through drift between free-running oscillators,
+    trigger latency not modelled, or a closing instruction its hardware needs.
+  - BLACS starts the master and declares the shot over when the master's
+    worker alone reports done (`blacs/shot_execution.py:942-955`). It then
+    moves every device to manual, so a secondary still running would be cut
+    short.
+  - The progress bar likewise shows the master's `stop_time` as the shot's
+    length.
+  - A fix belongs to BLACS: for example, wait for every pseudoclock device's
+    worker to report done. Unless the shot's real end is wanted, the plan above
+    does not depend on it.
+- Core lines: about 15 added in labscript, plus the docs section; about 20
+  removed from labscript-devices.
+- Other owners: labscript-devices (step 5); blacs, if the open point is taken
+  up.
+- **Outcome:** Planned, as above (Ian). Not yet built.
 
 #### 12. The connection table's layout is spelled out by its writer and readers
 
