@@ -281,9 +281,10 @@ The agreed plan, to be built in a later session. Nothing is changed yet.
      is refused with that error.
   5. labscript-devices: delete the six copies, landing together with 1 and 2,
      since either alone breaks the six devices. RFBlaster and PrawnDO need no
-     change: they gain both properties. Five devices also make their group
-     with `create_group` rather than `Device.init_device_group` (`base.py:470`);
-     they can switch in the same edit.
+     change: they gain both properties. Five devices make their device group
+     with `create_group` rather than `Device.init_device_group` (`base.py:470`):
+     Cicero, PineBlaster and PulseBlaster among the six, and RFBlaster and
+     PhaseMatrixQuickSyn. They can switch in the same edit.
   6. blacs and runviewer: no change; they read the same properties as now.
 - Not chosen: recording the shot's length among the shot properties beside
   `target_cycle_time`. That would hold the master's `stop_time` twice, and
