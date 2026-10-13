@@ -12,6 +12,7 @@ labscript |version|
    introduction
    connection_table
    timing
+   improvements
    api/index
 
 .. toctree::

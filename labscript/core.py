@@ -81,8 +81,6 @@ class ClockLine(Device):
     @set_passed_properties(property_names = {})
     def __init__(self, name, pseudoclock, connection, ramping_allowed=True, **kwargs):
         
-        # TODO: Verify that connection is valid connection of Pseudoclock.parent_device
-        # (the PseudoclockDevice)
         Device.__init__(self, name, pseudoclock, connection, **kwargs)
         self.ramping_allowed = ramping_allowed
         
@@ -157,10 +155,6 @@ class Pseudoclock(Device):
                 f"{device.name} cannot be added. Use {', '.join(clock_lines)} instead."
             )
         Device.add_device(self, device)
-        #TODO: Maybe verify here that device.connection (the ClockLine connection) is a valid connection of the parent PseudoClockDevice
-        #      Also see the same comment in ClockLine.__init__
-        # if device.connection not in self.clock_lines:
-            # self.clock_lines[
 
     def collect_change_times(self, all_outputs, outputs_by_clockline):
         """Asks all connected outputs for a list of times that they

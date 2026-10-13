@@ -596,7 +596,6 @@ def start():
     """
     compiler.start_called = True
     # Get and save some timing info about the pseudoclocks:
-    # TODO: What if you need to trigger individual Pseudolocks on the one device, rather than the PseudoclockDevice as a whole?
     pseudoclocks = [device for device in compiler.inventory if isinstance(device, PseudoclockDevice)]
     compiler.all_pseudoclocks = pseudoclocks
     toplevel_devices = [device for device in compiler.inventory if device.parent_device is None]
