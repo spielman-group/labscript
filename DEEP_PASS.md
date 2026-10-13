@@ -767,6 +767,8 @@ For Ian, which step 5 cannot settle:
 - The legacy documents `docs/Using the labscript API.docx` and
   `docs/labscript-dev/main.tex` (with its built `main.pdf`): not reviewed, since
   the first is binary; keep, update or drop.
+  **Outcome:** content moved to the docs (882ed4e here, labscript-devices
+  950712a), then the documents removed (96f20f5).
 - The docs build gives 27 warnings, mostly autosummary failing to import numpy
   names that `labscript.core` star-imports, and one on `max_or_zero`'s
   docstring.
