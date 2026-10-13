@@ -500,7 +500,7 @@ and the error paths) and labscript-devices' tests ran (41 passed).
 
 ### Follow-up
 
-#### 10. Why labs quantise their running time themselves (a finding; nothing fixed)
+#### 10. Why labs quantise their running time themselves
 
 - Report: Ian's labs quantise `t` themselves, with `quantise_to_pseudoclock` or
   a home-made version, because otherwise the compiler gives puzzling errors.
@@ -606,7 +606,22 @@ and the error paths) and labscript-devices' tests ran (41 passed).
     `pulse_width`, not the default symmetric pulse.
   - Which PulseBlaster model each lab runs is not in the repos; connection
     tables are lab-local.
-- Not built; for Ian.
+- **Outcome:** Built, da265dc..38e7279.
+  - Times are rounded to clock ticks: on the master when an instruction is
+    added, and on a secondary once, when its trigger offsets are applied. The
+    0.1 ns rounding is removed.
+  - Two instructions on one output in one tick warn and keep the one added
+    last.
+  - `Trigger.trigger` raises for a trigger whose rise and fall land on one tick,
+    and for a sub-tick gap between triggers. Master pseudoclock only; the
+    secondary gap is in `KNOWN_ISSUES.md`.
+  - The float noise left in ramp values is accepted (Ian's option 1). The
+    integer-tick fix is recorded in `KNOWN_ISSUES.md`, `docs/source/timing.rst`
+    and a comment in `Output.expand_timeseries`.
+  - Not ported to `UpstreamBugFixes`: the patch does not apply cleanly to its
+    `outputs.py`, and that tree cannot compile here without the numpy 2 dtype
+    fixes, so a port could not be verified.
+  - The SpinAPI truncation question went to labscript-devices.
 
 ## Step 4: dead code and compatibility leftovers
 
