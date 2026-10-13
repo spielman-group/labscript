@@ -1588,10 +1588,21 @@ class Trigger(DigitalOut):
         if t != self.t0 and self.t0 not in self.instructions:
             self.disable(self.t0)
 
-        start = t
-        end = t + duration
+        # Compare ticks, not requested times: an edge pair within one tick is lost.
+        start = self.quantise_to_pseudoclock(t)
+        end = self.quantise_to_pseudoclock(t + duration)
+        if start == end:
+            raise LabscriptError(
+                f"{self.description} {self.name} has a trigger at t = {t}s lasting "
+                f"{duration}s, shorter than one tick "
+                f"({self.pseudoclock_device.clock_resolution}s) of "
+                f"{self.pseudoclock_device.name}. Its rise and fall would fall on the "
+                "same tick, and the trigger would be lost. Make it at least one tick "
+                "long."
+            )
         for other_start, other_duration in self.triggerings:
-            other_end = other_start + other_duration
+            other_end = self.quantise_to_pseudoclock(other_start + other_duration)
+            other_start = self.quantise_to_pseudoclock(other_start)
             # Check for overlapping exposures:
             if not (end < other_start or start > other_end):
                 raise LabscriptError(
