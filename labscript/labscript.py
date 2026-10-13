@@ -73,8 +73,10 @@ from .outputs import (
 from .utils import (
     LabscriptError,
     bitfield,
+    config,
     fastflatten,
     max_or_zero,
+    no_warnings,
     set_passed_properties,
     suppress_all_warnings,
     suppress_mild_warnings
@@ -86,11 +88,6 @@ if os.name=='nt':
     startupinfo.dwFlags |= 1 #subprocess.STARTF_USESHOWWINDOW # This variable isn't defined, but apparently it's equal to one.
 else:
     startupinfo = None
-
-# Alias for backwards compatibility. The config has been moved into the compiler with
-# the other settings.
-config = compiler 
-no_warnings = suppress_all_warnings # Historical alias
 
 
 class WaitMonitor(Trigger):
@@ -706,8 +703,6 @@ def labscript_init(hdf5_filename, labscript_file=None, new=False, overwrite=Fals
         labscript_file: Handle to the labscript file.
         new (bool, optional): If `True`, ensure a new shot file is created.
         overwrite (bool, optional): If `True`, overwrite existing shot file, if it exists.
-        load_globals_values (bool, optional): If `True`, load global values 
-            from the existing shot file.
     """
     # save the builtins for later restoration in labscript_cleanup
     compiler.save_builtins_state()

@@ -215,6 +215,39 @@ def suppress_all_warnings(state=True):
         compiler.suppress_all_warnings = previous_warning_setting
 
 
+def no_warnings(state=True):
+    """Deprecated: use ``suppress_all_warnings``."""
+    warnings.warn(
+        "no_warnings will be removed from labscript; use suppress_all_warnings.",
+        FutureWarning,
+        stacklevel=2,
+    )
+    return suppress_all_warnings(state)
+
+
+class _Config:
+    """Deprecated: labscript's settings are attributes of ``compiler``."""
+
+    def __getattr__(self, name):
+        _warn_config()
+        return getattr(compiler, name)
+
+    def __setattr__(self, name, value):
+        _warn_config()
+        setattr(compiler, name, value)
+
+
+def _warn_config():
+    warnings.warn(
+        "config will be removed from labscript; use compiler instead.",
+        FutureWarning,
+        stacklevel=3,
+    )
+
+
+config = _Config()
+
+
 class LabscriptError(Exception):
     """A *labscript* error.
 
