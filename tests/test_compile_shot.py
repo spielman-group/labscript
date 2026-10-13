@@ -108,7 +108,7 @@ class CompileTests(unittest.TestCase):
                 'time_markers',
                 'waits',
             ):
-                self.assertIn(group, f, '%s is written by a full compile' % group)
+                self.assertIn(group, f, f'{group} is written by a full compile')
             # The tables whose dtypes are the risk, read back as strings:
             self.assertEqual(
                 [row['label'].decode() for row in f['time_markers'][:]],

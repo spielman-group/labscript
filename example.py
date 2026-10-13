@@ -57,7 +57,7 @@ NovaTechDDS9M(
     com_port="com10",
 )
 
-# A second pseudoclock to just clock a NI_PCI_6733 Card
+# A second pseudoclock to just clock an NI_PCI_6733 card
 PineBlaster(
     name="pineblaster_0",
     trigger_device=ni_card_0,
@@ -71,8 +71,9 @@ NI_PCI_6733(
     MAX_name="ni_pci_6733_0",
 )
 
-# Create the output/input channels on the above devices use the example1 conversion
-# class located in pythonlib/unitconversions/example.py with default paremeters
+# Create the output/input channels on the above devices. This one uses the example1
+# conversion class located in pythonlib/unitconversions/example.py with default
+# parameters.
 AnalogOut(
     name="analog0",
     parent_device=ni_card_1,
@@ -80,9 +81,8 @@ AnalogOut(
     unit_conversion_class=example1,
 )
 
-# same as above, but we are changing some parameters used in the conversion and
-# specifying a prefix to be used with units. You can now program in mA, uA, mGauss,
-# uGauss
+# Same as above, but we change some parameters used in the conversion and specify
+# the prefixes to be used with units. You can now program in mA, uA, mGauss, uGauss.
 AnalogOut(
     name="analog1",
     parent_device=ni_card_1,
@@ -110,7 +110,7 @@ DigitalOut(
 DDS(name="dds1", parent_device=novatechdds9m_0, connection="channel 0")
 DDS(name="dds2", parent_device=novatechdds9m_0, connection="channel 1")
 StaticDDS(name="dds5", parent_device=novatechdds9m_0, connection="channel 2")
-# The next DDS is special because it has the frequency and amplitude calibrated using
+# The next DDS is special because its frequency and amplitude are calibrated using the
 # example2 and example3 classes from pythonlib/unitconversions/example.py
 DDS(
     name="dds3",
@@ -123,14 +123,14 @@ DDS(
 )
 DDS(name="dds4", parent_device=pulseblaster_0.direct_outputs, connection="dds 1")
 
-# This sets up the inputs/counters/etc that will monitor
-# The first paremeter is the name for the WaitMonitor device
-# The second and third paremeters are the device and channel respectively that goes
-# high when a wait begins and low when it ends. This output should be
-# physically connected to a counter specified in the next two paremeters.
-# The final two paremeters specify the device/channel that is to trigger the
+# This sets up the inputs/counters/etc that will monitor waits.
+# The first parameter is the name for the WaitMonitor device.
+# The second and third parameters are the device and channel respectively that go
+# high when a wait begins and low when it ends. This output should be physically
+# connected to a counter specified in the next two parameters.
+# The final two parameters specify the device/channel that is to trigger the
 # pseudoclock if the WAIT instruction hits the specified timeout. The output of
-# this channel should be physicaly connect to the external trigger of the master
+# this channel should be physically connected to the external trigger of the master
 # pseudoclock.
 WaitMonitor(
     name="wait_monitor",
@@ -142,11 +142,10 @@ WaitMonitor(
     timeout_connection="pfi1",
 )
 
-# A variable to define the acquisition rate used for the analog outputs below.
-# This is just here to show you that you can use variables instead of typing in numbers!
-# Furthermore, these variables could be defined within runmanager (rather than in the
-# code like this one is)
-# for easy manipulation via a graphical interface.
+# The sample rate used for the analog outputs below. This shows that you can use
+# variables instead of typing in numbers. Such variables can also be defined within
+# runmanager, rather than in the code as here, for easy manipulation via a graphical
+# interface.
 rate = 1e4
 
 # The time (in seconds) we wish the pineblaster pseudoclock to start after
@@ -159,28 +158,28 @@ start()
 # A variable to keep track of time
 t = 0
 
-# Analog Acquisitions are acquired at the sample rate specified when the *device* is
-# instantiated (eg NI_PCIE_6363() above)
+# Analog acquisitions are acquired at the sample rate specified when the *device* is
+# instantiated (e.g. NI_PCIe_6363() above).
 # Acquire an analog trace on this channel from t=0s to t=1s
-input1.acquire(label='measurement1', start_time=0, end_time=1)
+input1.acquire(label="measurement1", start_time=0, end_time=1)
 # Acquire an analog trace on this channel from t=3s to t=5s
-input1.acquire(label='measurement2', start_time=3, end_time=5)
+input1.acquire(label="measurement2", start_time=3, end_time=5)
 # Acquire an analog trace on this channel from t=7s to t=9s
-input1.acquire(label='measurement3', start_time=7, end_time=9)
+input1.acquire(label="measurement3", start_time=7, end_time=9)
 
 # Set some initial values (t=0) for DDS 1
 dds1.setamp(t=t, value=0.5)
 dds1.setfreq(t=t, value=0.6)
 dds1.setphase(t=t, value=0.7)
 
-# Set some values for dds2 at t=1s. They will have value '0' before this
-# time unless otherwise set
+# Set some values for dds2 at t=1s. They will have value '0' before this time
+# unless otherwise set
 dds2.setamp(t=t + 1, value=0.9)
 dds2.setfreq(t=t + 1, value=1.0)
 dds2.setphase(t=t + 1, value=1.1)
 
-# dds5 is a "static" DDS. This means its value can only be set once, and
-# will be set just before the experiment begins
+# dds5 is a "static" DDS. This means its value can only be set once, and will be
+# set just before the experiment begins
 dds5.setfreq(value=90 * MHz)
 dds5.setamp(value=1)
 dds5.setphase(value=0)
@@ -190,21 +189,19 @@ shutter1.close(t=t)
 shutter2.close(t=t)
 
 # Analog0 is attached to ni_card_1, which is an NI-pci_6733 card (MAX name
-# ni_pcie_6733_0) clocked by a pineblaster
+# ni_pcie_6733_0) clocked by a pineblaster.
 # The pineblaster is being triggered to start by a pulseblaster, which introduces
-# a delay into the start of output from the NI card
+# a delay into the start of output from the NI card.
 # This is all handled by labscript, and you still specify times from the beginning of
-# the experiment (when the master pseudoclock is started)
+# the experiment (when the master pseudoclock is started).
 # YOU DO NOT HAVE TO TAKE INTO ACCOUNT THE DELAY YOURSELF!!
 # You do however need to make sure you do not command output from this device before
-# the device has actually started.
-# To do so, make sure no commands happen on this channel before analog0.t0
-# (this variable contains the delay time!)
+# the device has actually started. To do so, make sure no commands happen on this
+# channel before analog0.t0 (this variable contains the delay time!)
 analog0.constant(t=analog0.t0, value=2)
 
-# Set this channel to a constant value
-# As this channel is clocked by the master pseudoclock, you can command
-# output from t=0
+# Set this channel to a constant value. As this channel is clocked by the master
+# pseudoclock, you can command output from t=0.
 analog2.constant(t=t, value=3)
 
 # Again, this must not start until analog1.t0 or later!
@@ -236,22 +233,21 @@ analog2.constant(t=5.9, value=5)
 analog2.constant(t=7, value=4)
 analog2.constant(t=8, value=5)
 
-# Incremenent t by 9 seconds
+# Increment t by 9 seconds
 t += 9
 
-# Wait for an external trigger on the master pseudoclock
-# Waits must be names
-# The timeout defaults to 5s, unless otherwise specified.
-# The timeout specifies how long to wait without seeing the external
-# trigger before continuing the experiment
-t += wait(label='my_first_wait', t=t, timeout=2)
+# Wait for an external trigger on the master pseudoclock.
+# Waits must be named.
+# The timeout defaults to 5s, unless otherwise specified. The timeout specifies how
+# long to wait without seeing the external trigger before continuing the experiment.
+t += wait(label="my_first_wait", t=t, timeout=2)
 
 # Waits take very little time as far as labscript is concerned. They only add on the
-# retirggering time needed to start devices up and get them all in sync again.
+# retriggering time needed to start devices up and get them all in sync again.
 # After a wait, labscript time (the t variable here) and execution time (when the
-# hardware instructions are executed on the hardware) will not be the same
-# as the wait instruction may take anywhere from 0 to "timeout" seconds,
-# and this number is only determined during execution time.
+# hardware instructions are executed on the hardware) will not be the same, as the
+# wait instruction may take anywhere from 0 to "timeout" seconds, and this number is
+# only determined during execution time.
 
 t += 1
 # Do something 1s after the wait!
@@ -259,23 +255,22 @@ switch.go_high(t=t)
 
 # Examples programming in different units as specified in the
 # unitconversion classes passed as parameters to the channel definition
-analog0.constant(t=t, value=5, units='A')
-analog1.constant(t=t, value=1000, units='mGauss')
-dds3.setfreq(t=t, value=50, units='detuned_MHz')
-dds3.setamp(t=t, value=1.9, units='W')
+analog0.constant(t=t, value=5, units="A")
+analog1.constant(t=t, value=1000, units="mGauss")
+dds3.setfreq(t=t, value=50, units="detuned_MHz")
+dds3.setamp(t=t, value=1.9, units="W")
 
 # Hold values for 2 seconds
 t += 2
 
-analog0.ramp(t=t, duration=1, initial=5, final=7, samplerate=rate, units='Gauss')
-analog1.constant(t=t, value=3e6, units='uA')
-dds3.setfreq(t=t, value=60, units='detuned_MHz')
-dds3.setamp(t=t, value=500, units='mW')
+analog0.ramp(t=t, duration=1, initial=5, final=7, samplerate=rate, units="Gauss")
+analog1.constant(t=t, value=3e6, units="uA")
+dds3.setfreq(t=t, value=60, units="detuned_MHz")
+dds3.setamp(t=t, value=500, units="mW")
 
 # Hold values for 2 seconds
 t += 2
 
-# Stop at t=15 seconds, note that because of the wait timeout, this might
-# be as late as 17s (Plus a little bit of retriggering time) in execution
-# time
+# Stop at t=15 seconds. Because of the wait timeout, this might be as late as 17s
+# (plus a little bit of retriggering time) in execution time.
 stop(t=t)
