@@ -600,7 +600,7 @@ def add_time_marker(t, label, color=None, verbose=False):
         color = PIL.ImageColor.getrgb(color)
     if color is None:
         color = (-1, -1, -1)
-    elif not all(0 <= n <= 255 for n in color):
+    elif not builtins.all(0 <= n <= 255 for n in color):
         raise ValueError("Invalid RGB tuple %s" % str(color))
     if verbose:
         functions.print_time(t, label)
