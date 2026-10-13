@@ -197,7 +197,8 @@ def exp_ramp_t(duration, initial, final, time_constant):
 def piecewise_accel(duration, initial, final):
     """Defines a ramp from `initial` to `final` that starts and ends at rest.
 
-    Its acceleration is a triangle wave: cubic in each third of `duration`.
+    Its acceleration is a triangle wave, so the value is cubic in each third of
+    `duration`.
 
     Parameters
     ----------

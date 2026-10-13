@@ -72,7 +72,7 @@ NI_PCI_6733(
 )
 
 # Create the output/input channels on the above devices. This one uses the example1
-# conversion class located in pythonlib/unitconversions/example.py with default
+# conversion class located in labscript_utils/unitconversions/example.py with default
 # parameters.
 AnalogOut(
     name="analog0",
@@ -111,7 +111,7 @@ DDS(name="dds1", parent_device=novatechdds9m_0, connection="channel 0")
 DDS(name="dds2", parent_device=novatechdds9m_0, connection="channel 1")
 StaticDDS(name="dds5", parent_device=novatechdds9m_0, connection="channel 2")
 # The next DDS is special because its frequency and amplitude are calibrated using the
-# example2 and example3 classes from pythonlib/unitconversions/example.py
+# example2 and example3 classes from labscript_utils/unitconversions/example.py
 DDS(
     name="dds3",
     parent_device=pulseblaster_0.direct_outputs,
@@ -123,15 +123,9 @@ DDS(
 )
 DDS(name="dds4", parent_device=pulseblaster_0.direct_outputs, connection="dds 1")
 
-# This sets up the inputs/counters/etc that will monitor waits.
-# The first parameter is the name for the WaitMonitor device.
-# The second and third parameters are the device and channel respectively that go
-# high when a wait begins and low when it ends. This output should be physically
-# connected to a counter specified in the next two parameters.
-# The final two parameters specify the device/channel that is to trigger the
-# pseudoclock if the WAIT instruction hits the specified timeout. The output of
-# this channel should be physically connected to the external trigger of the master
-# pseudoclock.
+# Pulses on `connection` mark waits; the counter on `acquisition_connection` times
+# them; `timeout_connection`, wired to the master pseudoclock's external trigger,
+# retriggers it when a wait times out.
 WaitMonitor(
     name="wait_monitor",
     parent_device=ni_card_0,
@@ -142,10 +136,8 @@ WaitMonitor(
     timeout_connection="pfi1",
 )
 
-# The sample rate used for the analog outputs below. This shows that you can use
-# variables instead of typing in numbers. Such variables can also be defined within
-# runmanager, rather than in the code as here, for easy manipulation via a graphical
-# interface.
+# Sample rate for the analog outputs below; it could instead be a runmanager
+# global, set from its graphical interface.
 rate = 1e4
 
 # The time (in seconds) we wish the pineblaster pseudoclock to start after
@@ -188,16 +180,9 @@ dds5.setphase(value=0)
 shutter1.close(t=t)
 shutter2.close(t=t)
 
-# Analog0 is attached to ni_card_1, which is an NI-pci_6733 card (MAX name
-# ni_pcie_6733_0) clocked by a pineblaster.
-# The pineblaster is being triggered to start by a pulseblaster, which introduces
-# a delay into the start of output from the NI card.
-# This is all handled by labscript, and you still specify times from the beginning of
-# the experiment (when the master pseudoclock is started).
-# YOU DO NOT HAVE TO TAKE INTO ACCOUNT THE DELAY YOURSELF!!
-# You do however need to make sure you do not command output from this device before
-# the device has actually started. To do so, make sure no commands happen on this
-# channel before analog0.t0 (this variable contains the delay time!)
+# analog0's card is clocked by the pineblaster, a secondary pseudoclock: labscript
+# handles its trigger delay, so times still count from the start of the shot, but
+# no command may come before analog0.t0, when the delayed device starts.
 analog0.constant(t=analog0.t0, value=2)
 
 # Set this channel to a constant value. As this channel is clocked by the master
@@ -236,18 +221,12 @@ analog2.constant(t=8, value=5)
 # Increment t by 9 seconds
 t += 9
 
-# Wait for an external trigger on the master pseudoclock.
-# Waits must be named.
-# The timeout defaults to 5s, unless otherwise specified. The timeout specifies how
-# long to wait without seeing the external trigger before continuing the experiment.
+# Wait for an external trigger on the master pseudoclock. Waits must be named, and
+# continue after `timeout` (default 5 s) without one.
 t += wait(label="my_first_wait", t=t, timeout=2)
 
-# Waits take very little time as far as labscript is concerned. They only add on the
-# retriggering time needed to start devices up and get them all in sync again.
-# After a wait, labscript time (the t variable here) and execution time (when the
-# hardware instructions are executed on the hardware) will not be the same, as the
-# wait instruction may take anywhere from 0 to "timeout" seconds, and this number is
-# only determined during execution time.
+# In labscript time a wait adds only the retriggering time; in execution it lasts 0
+# to `timeout` s, so after a wait labscript time (t here) and execution time differ.
 
 t += 1
 # Do something 1s after the wait!

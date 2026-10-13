@@ -88,12 +88,13 @@ class Device:
             Flag to command device to call its parent device's add_device when
             adding a device.
         added_properties : dict, optional
+            Saved with the device properties in the shot file.
         gui : :obj:`_RemoteConnection`, optional
             Remote connection that runs the BLACS GUI for this device. If `worker` is
             not given, it is also the worker.
         worker : :obj:`_RemoteConnection`, optional
-            Remote connection that runs the worker for this device. Must be `gui` or a
-            child of it.
+            Remote connection that runs the worker for this device. Must be `gui`, or
+            a child of it (of the primary BLACS if `gui` is not given).
         start_order : int, optional
             Priority when starting, sorted with all devices.
         stop_order : int, optional

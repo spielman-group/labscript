@@ -88,7 +88,7 @@ from .utils import (
 # Keeps subprocesses from launching with a visible command window.
 if os.name == 'nt':
     startupinfo = subprocess.STARTUPINFO()
-    # subprocess.STARTF_USESHOWWINDOW is not defined here, but equals one.
+    # 1 is subprocess.STARTF_USESHOWWINDOW.
     startupinfo.dwFlags |= 1
 else:
     startupinfo = None
@@ -150,7 +150,7 @@ class WaitMonitor(Trigger):
             terminal corresponding to the gate of that counter.
         timeout_device : :obj:`Device`, optional
             The device that should be used to produce pulses in software time if a
-            wait lasts longer than its prescribed timeout. These pulses can
+            wait lasts longer than its prescribed timeout. These pulses can be
             connected to the trigger input of the master pseudoclock, via a digital
             logic to 'AND' it with other trigger sources, in order to resume the
             master pseudoclock upon a wait timing out. To produce these pulses
@@ -159,7 +159,7 @@ class WaitMonitor(Trigger):
             can be used as the timeout device (though it need not be the same device
             as the acquisition device). If not set, timeout pulses will not be
             produced and the user must manually resume the master pseudoclock via
-            other means, or abort a shot if the indended resumption mechanism fails.
+            other means, or abort a shot if the intended resumption mechanism fails.
         timeout_connection : str, optional
             Which connection on the timeout device should be used to produce timeout
             pulses. Since only NI DAQmx devices are supported at the moment, this
@@ -331,7 +331,7 @@ def _run_vcs_commands(path):
 
     The function is used to gather up version control system information so that
     it can be stored in the hdf5 files of shots. This is for convenience and
-    compliments the full copy of the file already included in the shot file.
+    complements the full copy of the file already included in the shot file.
 
     Whether hg and git commands are run is controlled by the `save_hg_info`
     and `save_git_info` options in the `[labscript]` section of the labconfig.
@@ -399,8 +399,8 @@ def _run_vcs_commands(path):
 def save_labscripts(hdf5_file):
     """Write the script files for the compiled shot to the shot file.
 
-    If `save_hg_info` labconfig parameter is `True`, will attempt to save
-    hg version info as an attribute.
+    If the labconfig `save_hg_info` or `save_git_info` options are `True`, also
+    saves hg or git output for each labscriptlib module as attributes.
 
     Parameters
     ----------
@@ -669,7 +669,7 @@ def add_time_marker(t, label, color=None, verbose=False):
         Label for the marker.
     color : tuple of int or str, optional
         The color may be specified as an RGB tuple, or a string of the color name
-        such as 'red', or a string of its hex value such as '#ff88g0'.
+        such as 'red', or a string of its hex value such as '#ff8800'.
     verbose : bool, optional
         If `True`, also print the label and time, which can be useful to view
         during shot compilation.
@@ -677,7 +677,7 @@ def add_time_marker(t, label, color=None, verbose=False):
     Raises
     ------
     ValueError
-        If `color` is an RGB tuple with a value outside 0 to 255.
+        If `color` is a string PIL cannot parse.
     """
     if isinstance(color, (str, bytes)):
         import PIL.ImageColor

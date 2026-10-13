@@ -153,10 +153,10 @@ class Output(Device):
         """float: The earliest time output can be commanded from this device after a
         wait.
 
-        This is nonzero on secondary pseudoclocks due to triggering delays and the fact
-        that the master clock doesn't provide a resume trigger to secondary clocks until
-        a minimum time has elapsed: compiler.wait_delay. This is so that if a wait is
-        extremely short, the child clock is actually ready for the trigger.
+        It is the trigger delay of this output's pseudoclock device, plus, on the
+        master pseudoclock, compiler.wait_delay: the master does not resume the
+        secondary clocks until that long after a wait, so that they are ready for the
+        trigger even after an extremely short wait.
         """
         delay = (
             compiler.wait_delay if self.pseudoclock_device.is_master_pseudoclock else 0
@@ -572,7 +572,7 @@ class Output(Device):
         that should be used to program the output device. They are stored in
         `self.raw_output`.
         """
-        # A non-ramping output's timeseries is already as expanded as it will get.
+        # On a clock line without ramping, the timeseries is already fully expanded.
         if not self.parent_clock_line.ramping_allowed:
             self.raw_output = np.array(self.timeseries, dtype=np.dtype(self.dtype))
             return
@@ -1944,10 +1944,8 @@ class _DDSBase(Device):
         **kwargs
             Keyword arguments passed to :func:`Device.__init__`.
         """
-        # call_parents_add_device=False lets us do more initialisation before
-        # calling self.parent_device.add_device(self) manually, so that the parent's
-        # add_device can check against the code below, while Device.__init__ still
-        # gives us its checks and attributes in the meantime.
+        # Device.__init__ without the parent's add_device, so that add_device, called
+        # below, can check the channels set up here.
         super().__init__(
             name, parent_device, connection, call_parents_add_device=False, **kwargs
         )
@@ -2005,13 +2003,9 @@ class _DDSBase(Device):
                 f"of {self.name}."
             )
 
-        # If the user gave no gate and the parent device supports gating of DDS
-        # output, the parent adds a gate in its add_device, called below. If they
-        # did give one but the parent has its own gating (such as the PulseBlaster),
-        # the parent should raise in add_device; see
-        # labscript_devices.PulseBlaster.PulseBlaster.add_device for an example.
-        # Some subclasses must hold off on calling the parent's add_device until
-        # further code has run, e.g. PulseBlasterDDS in PulseBlaster.py.
+        # The parent's add_device adds a gate if none was given and it supports one,
+        # or raises if it gates itself (e.g. PulseBlaster). Subclasses that must run
+        # more code first, such as PulseBlasterDDS, defer the call.
         if call_parents_add_device:
             self.parent_device.add_device(self)
 

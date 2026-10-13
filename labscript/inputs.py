@@ -61,10 +61,12 @@ class AnalogIn(Device):
         end_time : float
             Time, in seconds, when the acquisition should end.
         wait_label : str, optional
-        scale_factor : float
-            Factor to scale the saved values by.
-        units
-            Units of the input, consistent with the unit conversion class.
+            Saved with the acquisition in the shot file; labscript does not use it.
+        scale_factor : float, optional
+            Factor to scale the saved values by; the input's own if `None`.
+        units : optional
+            Units of the input, consistent with the unit conversion class; the
+            input's own if `None`.
 
         Returns
         -------

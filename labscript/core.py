@@ -522,8 +522,7 @@ class Pseudoclock(Device):
                         )
                     # If stop_time equals the time of the last instruction, still
                     # output that instruction so the number of clock ticks matches the
-                    # number of points in the Output.raw_output arrays. This last
-                    # cycle lasts ten times the minimum step duration.
+                    # number of points in the Output.raw_output arrays.
                     else:
                         enabled_clocks = []
                         for clock_line in outputs_by_clockline:
@@ -931,6 +930,7 @@ class PseudoclockDevice(TriggerableDevice):
         outputs = self.get_all_outputs()
         self.do_checks(outputs)
         self.offset_instructions_from_trigger(outputs)
-        # Skips TriggerableDevice.generate_code, whose do_checks() takes no outputs.
+        # TriggerableDevice.generate_code would call do_checks() without the outputs
+        # this class's do_checks needs.
         Device.generate_code(self, hdf5_file)
 
