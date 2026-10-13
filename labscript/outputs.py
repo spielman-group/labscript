@@ -14,6 +14,7 @@
 """Classes for devices channels that are outputs"""
 
 import sys
+import warnings
 
 import numpy as np
 
@@ -23,6 +24,16 @@ from .compiler import compiler
 from .constants import *
 from .core import TriggerableDevice
 from .utils import LabscriptError, set_passed_properties
+
+
+def _renamed_keyword(kwargs, old, new, value):
+    """Return `kwargs[old]` if given, warning that it will be removed, else `value`."""
+    if old not in kwargs:
+        return value
+    warnings.warn(
+        f"{old} will be removed from labscript; use {new}.", FutureWarning, stacklevel=3
+    )
+    return kwargs.pop(old)
 
 
 class Output(Device):
@@ -753,16 +764,17 @@ class AnalogQuantity(Output):
     def sine4_reverse_ramp(
         self, t, duration, initial, final, samplerate, units=None, truncation=1.
     ):
-        """Command the output to perform a decreasing ramp defined by one half period of a quartic sine wave.
+        """Command the output to perform `sine4_ramp` backwards in time: from
+        `final` at `t` to `initial` at `t+duration`.
 
         Defined by
-        `f(t) = (final-initial)*(sin(pi*t/(2*duration)))^4 + initial`
+        `f(t) = (final-initial)*(sin(pi/2+pi*t/(2*duration)))^4 + initial`
 
         Args:
             t (float): Time, in seconds, to begin the ramp.
             duration (float): Length, in seconds, of the ramp.
-            initial (float): Initial output value, at time `t`.
-            final (float): Final output value, at time `t+duration`.
+            initial (float): Output value the ramp ends at, at time `t+duration`.
+            final (float): Output value the ramp starts at, at time `t`.
             samplerate (float): Rate, in Hz, to update the output.
             units: Units the output values are given in, as specified by the
                 unit conversion class.
@@ -811,11 +823,10 @@ class AnalogQuantity(Output):
                   and 1 (no truncation). 
 
         """
-        # Backwards compatibility for old kwarg names
-        if "trunc" in kwargs:
-            truncation = kwargs.pop("trunc")
-        if "trunc_type" in kwargs:
-            truncation_type = kwargs.pop("trunc_type")
+        truncation = _renamed_keyword(kwargs, "trunc", "truncation", truncation)
+        truncation_type = _renamed_keyword(
+            kwargs, "trunc_type", "truncation_type", truncation_type
+        )
         if truncation is not None:
             # Computed the truncated duration based on the truncation_type
             if truncation_type == "linear":
@@ -876,11 +887,10 @@ class AnalogQuantity(Output):
                   and 1 (no truncation).
 
         """
-        # Backwards compatibility for old kwarg names
-        if "trunc" in kwargs:
-            truncation = kwargs.pop("trunc")
-        if "trunc_type" in kwargs:
-            truncation_type = kwargs.pop("trunc_type")
+        truncation = _renamed_keyword(kwargs, "trunc", "truncation", truncation)
+        truncation_type = _renamed_keyword(
+            kwargs, "trunc_type", "truncation_type", truncation_type
+        )
         if truncation is not None:
             zero = (final-initial*np.exp(-duration/time_constant)) / \
                 (1-np.exp(-duration/time_constant))

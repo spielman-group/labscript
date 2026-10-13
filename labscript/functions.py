@@ -84,14 +84,14 @@ def sine4_ramp(duration, initial, final):
     return lambda t: (final-initial)*(sin(pi*(t)/(2*duration)))**4 + initial
     
 def sine4_reverse_ramp(duration, initial, final):
-    """Defines a quartic sinusoidally decreasing ramp.
+    """Defines `sine4_ramp` run backwards in time: from `final` to `initial`.
 
     f(t) = (final-initial)*(sin(pi/2+pi*t/(2*duration)))^4 + initial
 
     Args:
         duration (float): Length of time for the ramp to complete.
-        initial (float): Initial value of ramp.
-        final (float): Final value of ramp.
+        initial (float): Value the ramp ends at.
+        final (float): Value the ramp starts at.
 
     Returns:
         func: Function that takes a single parameter `t`.
