@@ -132,17 +132,17 @@ class NIBoard(IntermediateDevice):
         
         # Save the analog output table, if it exists (subclasses may have zero outputs and hence an empty table):
         if all(analog_out_table.shape): # Both dimensions must be nonzero
-            analog_dataset = grp.create_dataset('ANALOG_OUTS',compression=config.compression,data=analog_out_table)
+            analog_dataset = grp.create_dataset('ANALOG_OUTS',compression=compiler.compression,data=analog_out_table)
             # Save the corresponding list of channels:
             grp.attrs['analog_out_channels'] = ', '.join(analog_out_attrs)
         # Save the digital output table, if it exists:
         if len(digital_out_table): # Table must be non empty
-            digital_dataset = grp.create_dataset('DIGITAL_OUTS',compression=config.compression,data=digital_out_table)
+            digital_dataset = grp.create_dataset('DIGITAL_OUTS',compression=compiler.compression,data=digital_out_table)
             # Save the corresponding list of channels:
             grp.attrs['digital_lines'] = '/'.join((self.MAX_name,'port0','line0:%d'%(self.n_digitals-1)))
         # Save the table of acquisitions, if it exists:
         if len(acquisition_table): # Table must be non empty
-            input_dataset = grp.create_dataset('ACQUISITIONS',compression=config.compression,data=acquisition_table)
+            input_dataset = grp.create_dataset('ACQUISITIONS',compression=compiler.compression,data=acquisition_table)
             # Save the channels for analog input:
             grp.attrs['analog_in_channels'] = ', '.join(input_attrs)
             # Save the acquisition rate for analog input:
