@@ -773,22 +773,35 @@ For Ian, which step 5 cannot settle:
   names that `labscript.core` star-imports, and one on `max_or_zero`'s
   docstring.
 
-## Seen for later steps
+## Step 6: whole-file style
 
-Each was re-checked on `CodeHealth` at 3510de2. All are upstream's code.
+Every module, `example.py` and the tests were rewritten under labscript-style:
+NumPy docstrings on the public surface (144 Google-style sections before, none
+after), comments cut to the why in three lines or fewer, `class Foo:`,
+zero-argument `super()`, and f-strings with identical text. Sonnet workers did
+one module or group each, inputs.py first as the trial.
 
-- **Step 6, style.**
-  - `functions.py:86` and `outputs.py:736`: `sine4_reverse_ramp`'s docstrings
-    say "decreasing", but it runs `sine4_ramp` backwards in time, from `final`
-    to `initial`.
-  - `PseudoclockDevice.do_checks(self, outputs)` (`core.py:827`) overrides
-    `TriggerableDevice.do_checks(self)` (`core.py:697`) with a different
-    signature.
-  - `core.py:77`, 107 and 144: TODO comments, the last half-written.
-  - `tests/test_compile_shot.py`'s module docstring and
-    `docs/labscript-dev/intermediatedevice_example.py:105-111` narrate history.
-  - The API pages no longer show `enable` and `disable` on `DDSQuantity` and
-    `StaticDDS`, nor the static members on the static quantities, since the
-    autosummary class template (`docs/source/_templates/autosummary-class.rst`)
-    omits `:inherited-members:`. Inferred from the template; the docs were not
-    built.
+- **Commits:** e8a3df7 (inputs), 62be9da (example, tests), a570012
+  (functions, utils), 564a66e (base, compiler, remote), f2a54cb (core),
+  75d29a4 (outputs), 8bca5a1 (labscript.py), 33c0c4d (review fixes).
+- **Code changes:** only `super()` where the class has one direct base (no
+  class in labscript or labscript-devices inherits from two of these), f-strings,
+  three unused locals, and line wraps. Each commit's code was compared with its
+  parent's, docstrings ignored.
+- **Checks:** the 52 test shots and 9 RbChip sequences compile to identical
+  shot files against 268d127; labscript's and labscript-devices' suites pass;
+  a clean-copy docs build gives 0 warnings.
+- **Review:** one independent review found 24 places where text and code
+  disagreed or a comment was too long; all were fixed in 33c0c4d.
+- **Bug found and fixed:** `add_time_marker` never refused an RGB tuple outside
+  0 to 255, since pylab's `all` took the generator as one true value
+  (dcbf983, with a test).
+- **Also:** `del core` became `globals().pop('core', None)`, which works on a
+  numpy without the alias (972d8ab; on `UpstreamBugFixes` as 541d232, after
+  the original fix as eeeb51d). The connection diagram's source is now an SVG
+  that HTML uses directly, with a PNG rendered from it for the PDF (df1e3a6).
+- **From the earlier survey:** `sine4_reverse_ramp`'s docstrings, the `core.py`
+  TODOs, the narrating test docstring and the missing inherited members are
+  fixed. `PseudoclockDevice.do_checks(self, outputs)` keeps its signature,
+  which differs from `TriggerableDevice.do_checks(self)`, since devices call
+  it; `generate_code` says why it bypasses the parent.
