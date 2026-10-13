@@ -1111,8 +1111,8 @@ class AnalogQuantity(Output):
         """
         # verify that value can be converted to float
         try:
-            val = float(value)
-        except:
+            float(value)
+        except (TypeError, ValueError):
             raise LabscriptError(
                 f"Cannot set {self.name} to value={value} at t={t} as the value cannot "
                 "be converted to float"
