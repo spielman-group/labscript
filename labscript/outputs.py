@@ -67,6 +67,8 @@ class Output(Device):
         Device.__init__(self,name,parent_device,connection, **kwargs)
 
         self.instructions = {}
+        # The time each instruction was asked for, by the tick it was rounded to:
+        self._requested_times = {}
         self.ramp_limits = [] # For checking ramps don't overlap
         if default_value is not None:
             self.default_value = default_value
@@ -219,13 +221,20 @@ class Output(Device):
         """
         if not compiler.start_called:
             raise LabscriptError("Cannot add instructions prior to calling start()")
-        # round to the nearest 0.1 nanoseconds, to prevent floating point
-        # rounding errors from breaking our equality checks later on.
-        time = round(time, 10)
-        # Also round end time of ramps to the nearest 0.1 ns:
+        # Round times to the tick of this output's pseudoclock, so that floating
+        # point errors cannot break equality checks, and every check compares the
+        # times the hardware will use. An output with no pseudoclock holds one
+        # value, and its time is only bookkeeping.
+        requested = time
+        if self.pseudoclock_device is not None:
+            time = self.quantise_to_pseudoclock(time)
         if isinstance(instruction,dict):
-            instruction["end time"] = round(instruction["end time"], 10)
-            instruction["initial time"] = round(instruction["initial time"], 10)
+            # The span the ramp's final value is evaluated at, before rounding:
+            end, initial = instruction["end time"], instruction["initial time"]
+            instruction["duration"] = round(end, 10) - round(initial, 10)
+            if self.pseudoclock_device is not None:
+                for key in ("end time", "initial time"):
+                    instruction[key] = self.quantise_to_pseudoclock(instruction[key])
         # Check that time is not negative or too soon after t=0:
         if time < self.t0:
             raise LabscriptError(
@@ -235,6 +244,11 @@ class Output(Device):
             )
         # Check that this doesn't collide with previous instructions:
         if time in self.instructions.keys():
+            previous = self._requested_times[time]
+            if round(previous, 10) != round(requested, 10):
+                asked = f" (asked for at t={previous}s and t={requested}s, one tick)"
+            else:
+                asked = ""
             if not compiler.suppress_all_warnings:
                 current_value = self.instruction_to_string(self.instructions[time])
                 new_value = self.instruction_to_string(
@@ -245,8 +259,8 @@ class Output(Device):
                 sys.stderr.write(
                     f"WARNING: State of {self.description} {self.name} at t={time}s "
                     f"has already been set to {current_value}. Overwriting to "
-                    f"{new_value}. (note: all values in base units where relevant)"
-                    "\n"
+                    f"{new_value}{asked}. (note: all values in base units where "
+                    "relevant)\n"
                 )
         # Check that ramps don't collide
         if isinstance(instruction, dict):
@@ -290,6 +304,7 @@ class Output(Device):
                         f"({self.limits[0]} to {self.limits[1]})"
                     )
         self.instructions[time] = instruction
+        self._requested_times[time] = requested
 
     def _add_ramp(
         self, t, duration, performed, description, samplerate, units, function, *args
@@ -346,13 +361,13 @@ class Output(Device):
             ):
                 self.add_instruction(
                     instruction["end time"],
-                    instruction["function"](
-                        instruction["end time"] - instruction["initial time"]
-                    ),
+                    instruction["function"](instruction["duration"]),
                     instruction["units"],
                 )
         # Checks for trigger times:
         for trigger_time in trigger_times:
+            trigger_time = self.quantise_to_pseudoclock(trigger_time)
+            delay_end = self.quantise_to_pseudoclock(trigger_time + self.trigger_delay)
             for t, inst in self.instructions.items():
                 # Check no ramps are happening at the trigger time:
                 if (
@@ -367,11 +382,7 @@ class Output(Device):
                         f"t={trigger_time}, and so cannot be performed."
                     )
                 # Check that nothing is happening during the delay time after the trigger:
-                if (
-                    round(trigger_time, 10)
-                    < round(t, 10)
-                    < round(trigger_time + self.trigger_delay, 10)
-                ):
+                if trigger_time < t < delay_end:
                     raise LabscriptError(
                         f"{self.description} {self.name} has an instruction at t={t}. "
                         f"This is too soon after a trigger at t={trigger_time}, "
@@ -397,25 +408,34 @@ class Output(Device):
             trigger_times (iterable): Times of all trigger events.
         """
         offset_instructions = {}
+        sources = {}
         for t, instruction in self.instructions.items():
             # How much of a delay is there for this instruction? That depends how many triggers there are prior to it:
             n_triggers_prior = len([time for time in trigger_times if time < t])
             # The cumulative offset at this point in time:
             offset = self.trigger_delay * n_triggers_prior + trigger_times[0]
-            offset = round(offset, 10)
             if isinstance(instruction, dict):
                 offset_instruction = instruction.copy()
                 offset_instruction["end time"] = self.quantise_to_pseudoclock(
-                    round(instruction["end time"] - offset, 10)
+                    instruction["end time"] - offset
                 )
                 offset_instruction["initial time"] = self.quantise_to_pseudoclock(
-                    round(instruction["initial time"] - offset, 10)
+                    instruction["initial time"] - offset
                 )
             else:
                 offset_instruction = instruction
 
-            new_time = self.quantise_to_pseudoclock(round(t - offset, 10))
+            new_time = self.quantise_to_pseudoclock(t - offset)
+            if new_time in offset_instructions:
+                raise LabscriptError(
+                    f"{self.description} {self.name} has instructions at "
+                    f"t={self._requested_times[sources[new_time]]}s and "
+                    f"t={self._requested_times[t]}s, which fall on the same tick, "
+                    f"t={new_time}s, once the trigger delays of "
+                    f"{self.pseudoclock_device.name} are applied."
+                )
             offset_instructions[new_time] = offset_instruction
+            sources[new_time] = t
         self.instructions = offset_instructions
 
         # offset each of the ramp_limits for use in the calculation within
@@ -425,14 +445,13 @@ class Output(Device):
             n_triggers_prior = len([time for time in trigger_times if time < times[0]])
             # The cumulative offset at this point in time:
             offset = self.trigger_delay * n_triggers_prior + trigger_times[0]
-            offset = round(offset, 10)
 
             # offset start and end time of ramps
             # NOTE: This assumes ramps cannot proceed across a trigger command
             #       (for instance you cannot ramp an output across a WAIT)
             self.ramp_limits[i] = (
-                self.quantise_to_pseudoclock(round(times[0] - offset, 10)),
-                self.quantise_to_pseudoclock(round(times[1] - offset, 10)),
+                self.quantise_to_pseudoclock(times[0] - offset),
+                self.quantise_to_pseudoclock(times[1] - offset),
             )
 
     def get_change_times(self):
@@ -1581,7 +1600,7 @@ class Trigger(DigitalOut):
                     f"t = {other_start}s for {other_duration}s."
                 )
         self.enable(t)
-        self.disable(round(t + duration, 10))
+        self.disable(t + duration)
         self.triggerings.append((t, duration))
 
     def add_device(self, device):

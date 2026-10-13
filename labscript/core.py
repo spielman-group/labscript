@@ -829,7 +829,6 @@ class PseudoclockDevice(TriggerableDevice):
         Args:
             t (float): Time, in seconds, to trigger this device.
         """
-        t = round(t,10)
         if compiler.start_called:
             raise LabscriptError(
                 "Initial trigger times must be set prior to calling start()"
@@ -840,7 +839,8 @@ class PseudoclockDevice(TriggerableDevice):
                 "changed."
             )
         else:
-            self.initial_trigger_time = t
+            # On the tick of the clock that fires the trigger:
+            self.initial_trigger_time = self.trigger_device.quantise_to_pseudoclock(t)
             
     def trigger(self, t, duration, wait_delay = 0):
         """Ask the trigger device to produce a digital pulse of a given duration
@@ -853,7 +853,9 @@ class PseudoclockDevice(TriggerableDevice):
         """
         if isinstance(t, str) and t == "initial":
             t = self.initial_trigger_time
-        t = round(t, 10)
+        # Trigger times are on the tick of the clock that fires the trigger:
+        clock = self if self.is_master_pseudoclock else self.trigger_device
+        t = clock.quantise_to_pseudoclock(t)
         if self.is_master_pseudoclock:
             if compiler.wait_monitor is not None:
                 # Make the wait monitor pulse to signify starting or resumption of the
@@ -862,7 +864,7 @@ class PseudoclockDevice(TriggerableDevice):
             self.trigger_times.append(t)
         else:
             TriggerableDevice.trigger(self, t, duration)
-            self.trigger_times.append(round(t + wait_delay, 10))
+            self.trigger_times.append(clock.quantise_to_pseudoclock(t + wait_delay))
 
     def do_checks(self, outputs):
         """Basic error checking to ensure the user's instructions make sense.
@@ -886,16 +888,15 @@ class PseudoclockDevice(TriggerableDevice):
             # Store the unmodified initial_trigger_time
             initial_trigger_time = self.trigger_times[0]
             # Adjust the stop time relative to the last trigger time
-            self.stop_time = round(
+            self.stop_time = (
                 self.stop_time
                 - initial_trigger_time
-                - self.trigger_delay * len(self.trigger_times),
-                10
+                - self.trigger_delay * len(self.trigger_times)
             )
 
             # Modify the trigger times themselves so that we insert wait instructions at the right times:
             self.trigger_times = [
-                round(t - initial_trigger_time - i*self.trigger_delay, 10)
+                t - initial_trigger_time - i*self.trigger_delay
                 for i, t in enumerate(self.trigger_times)
             ]
 

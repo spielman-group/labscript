@@ -393,7 +393,9 @@ class Device(object):
         if parent is None or parent.is_master_pseudoclock:
             return 0
         else:
-            return round(parent.trigger_times[0] + parent.trigger_delay, 10)
+            return self.quantise_to_pseudoclock(
+                parent.trigger_times[0] + parent.trigger_delay
+            )
                             
     def get_all_outputs(self):
         """Get all children devices that are outputs.
