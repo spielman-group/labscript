@@ -121,12 +121,8 @@ class Device(object):
             )
         self.child_devices = []
 
-        # self._properties may be instantiated already
-        if not hasattr(self, "_properties"):
-            self._properties = {}
-        for location in labscript_utils.properties.VALID_PROPERTY_LOCATIONS:
-            if location not in self._properties:
-                self._properties[location] = {}
+        locations = labscript_utils.properties.VALID_PROPERTY_LOCATIONS
+        self._properties = {location: {} for location in locations}
 
         if parent_device and call_parents_add_device:
             # This is optional by keyword argument, so that subclasses
@@ -210,13 +206,11 @@ class Device(object):
                 f"for property {name}"
             )
             
-        # if this try fails then self."location" may not be instantiated
         if not hasattr(self, "_properties"):
-            self._properties = {}
-
-        if location not in self._properties:
-            self._properties[location] = {}
-
+            raise LabscriptError(
+                f"{type(self).__name__} sets the property {name} before calling "
+                "Device.__init__, which creates the device's properties. Set it after."
+            )
         selected_properties = self._properties[location]
         
         if name in selected_properties and not overwrite:
@@ -298,10 +292,6 @@ class Device(object):
                 f"Device {self.name} requests invalid property read location {location}"
             )
             
-        # self._properties may not be instantiated
-        if not hasattr(self, "_properties"):
-            self._properties =  {}
-        
         # Run through all keys of interest
         for key, val in self._properties.items():
             if (location is None or key == location) and (name in val):
@@ -327,10 +317,6 @@ class Device(object):
         Returns:
             dict: Dictionary of properties.
         """
-
-        # self._properties may not be instantiated
-        if not hasattr(self, "_properties"):
-            self._properties =  {}
 
         if location is not None:
             properties = self._properties.get(location, {})
