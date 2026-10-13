@@ -389,6 +389,7 @@ and the error paths) and labscript-devices' tests ran (41 passed).
     `Device.__init__`, saying to call it first, rather than tolerating it.
 - Core lines: about 8 removed. Visible: only to a device written that way,
   which gets the clear error. Other owners: labscript-devices, two lines.
+- **Outcome:** Done, 3f4f6d5, with labscript-devices d338970 moving NI_DAQmx's call. The two must reach any tier together: without d338970, every NI card fails to compile.
 
 #### 2. The circular import behind `is_remote_connection`, `is_clock_line` and `is_pseudoclock_device`
 
@@ -419,6 +420,7 @@ and the error paths) and labscript-devices' tests ran (41 passed).
     labscript-optimization, labscript-agents and hyde).
 - Core lines: about 50 removed. Visible: the error for a device with no clock
   line is reworded, for the better. Other owners: none.
+- **Outcome:** Done, f58e840; the error reads "There is no ClockLine above pc, which has no parent." (fbe2f6c). It names the top device, since each parent answers in turn.
 
 #### 3. The unit-conversion import is wrapped to warn on failure
 
@@ -429,6 +431,7 @@ and the error paths) and labscript-devices' tests ran (41 passed).
   later with a `NameError` on a conversion class.
 - Proposal: a plain import, so a broken install raises with its cause.
 - Core lines: 3 removed. Visible: no.
+- **Outcome:** Done, 53d6fad.
 
 #### 4. `IntermediateDevice` and `ClockLine` read `clock_limit` with `getattr`
 
@@ -441,6 +444,7 @@ and the error paths) and labscript-devices' tests ran (41 passed).
   `minimum_clock_high_time` is a property of every `IntermediateDevice`, which
   is `ClockLine`'s only allowed child, so its `getattr` goes too.
 - Core lines: about 0; the protocol becomes explicit. Visible: no.
+- **Outcome:** Done, 4eec43a; the `minimum_clock_high_time` check for `None` went too, since nothing sets it.
 
 #### 5. `AnalogQuantity.constant` uses a bare `except`
 
@@ -448,6 +452,7 @@ and the error paths) and labscript-devices' tests ran (41 passed).
 - Proposal: catch `(TypeError, ValueError)`, and drop the unused `val`. The
   bare `except` also catches Ctrl-C.
 - Core lines: 1 removed. Visible: no.
+- **Outcome:** Done, e7051dc; `OverflowError` is caught as well, as the bare `except` did.
 
 ### Keep, with the reason
 
@@ -457,6 +462,7 @@ and the error paths) and labscript-devices' tests ran (41 passed).
 - Fired 48 times, all for static channels (`StaticAnalogQuantity`) under
   NovaTech's clock line. Static outputs never build a timeseries and never
   sweep, so skipping them is right. The test is the cheapest correct one.
+- **Outcome:** Kept (Ian).
 
 #### 7. Protocol checks with real absent cases
 
@@ -472,6 +478,7 @@ and the error paths) and labscript-devices' tests ran (41 passed).
   documented override by an instance attribute.
 - `hasattr(parent_device, "name")` (`core.py:45`): names a non-device parent a
   user passed, in the error.
+- **Outcome:** Kept (Ian).
 
 #### 8. Real external conditions
 
@@ -480,6 +487,7 @@ and the error paths) and labscript-devices' tests ran (41 passed).
 - Modules without `__file__` (401).
 - A shot file already holding compilation data (509), turned into a clear
   error.
+- **Outcome:** Kept (Ian).
 
 #### 9. End-of-sequence cases expressed as exceptions
 
@@ -488,6 +496,7 @@ and the error paths) and labscript-devices' tests ran (41 passed).
 - `outputs.py:516`, a one-element ramp.
 - `functions.py:218`, a scalar or an array.
 - Each is a real case. Writing them as explicit checks is step 6's business.
+- **Outcome:** Kept (Ian).
 
 ## Seen for later steps
 
@@ -503,7 +512,6 @@ Each was re-checked on `CodeHealth` at 3510de2. All are upstream's code.
     runmanager's `batch_compiler.py:59` calls `labscript_init` with the default
     `load_globals_values=True`, so only the stale markers would go.
   - `remote.py:43`, `SecondaryControlSystem`, used in no repo, hyde included.
-  - `outputs.py:1201` binds `val = float(value)` and never uses it.
   - `example.py:231`, `my_ramp`, is never called and uses `functions`, which
     `example.py` never imports.
 - **Step 6, style.**
