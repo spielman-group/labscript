@@ -27,33 +27,49 @@ class AnalogIn(Device):
     ):
         """Instantiates an Analog Input.
 
-        Args:
-            name (str): python variable to assign this input to.
-            parent_device (:obj:`IntermediateDevice`): Device input is connected to.
-            scale_factor (float, optional): Factor to scale the recorded values by.
-            units (str, optional): Units of the input.
-            **kwargs: Keyword arguments passed to :func:`Device.__init__`.
+        Parameters
+        ----------
+        name : str
+            python variable to assign this input to.
+        parent_device : :obj:`IntermediateDevice`
+            Device input is connected to.
+        connection : str
+            Input channel of `parent_device` this input is connected to.
+        scale_factor : float, optional
+            Factor to scale the recorded values by.
+        units : str, optional
+            Units of the input.
+        **kwargs
+            Keyword arguments passed to :func:`Device.__init__`.
         """
         self.acquisitions = []
         self.scale_factor = scale_factor
-        self.units=units
-        Device.__init__(self, name, parent_device, connection, **kwargs)
+        self.units = units
+        super().__init__(name, parent_device, connection, **kwargs)
 
     def acquire(
         self, label, start_time, end_time, wait_label="", scale_factor=None, units=None
     ):
         """Command an acquisition for this input.
 
-        Args:
-            label (str): Unique label for the acquisition. Used to identify the saved trace.
-            start_time (float): Time, in seconds, when the acquisition should start.
-            end_time (float): Time, in seconds, when the acquisition should end.
-            wait_label (str, optional): 
-            scale_factor (float): Factor to scale the saved values by.
-            units: Units of the input, consistent with the unit conversion class.
+        Parameters
+        ----------
+        label : str
+            Unique label for the acquisition. Used to identify the saved trace.
+        start_time : float
+            Time, in seconds, when the acquisition should start.
+        end_time : float
+            Time, in seconds, when the acquisition should end.
+        wait_label : str, optional
+        scale_factor : float
+            Factor to scale the saved values by.
+        units
+            Units of the input, consistent with the unit conversion class.
 
-        Returns:
-            float: Duration of the acquistion, equivalent to `end_time - start_time`.
+        Returns
+        -------
+        float
+            Duration of the acquisition, equivalent to `end_time - start_time`.
         """
         if scale_factor is None:
             scale_factor = self.scale_factor
