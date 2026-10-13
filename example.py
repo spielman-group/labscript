@@ -228,11 +228,6 @@ analog0.ramp(t=t, duration=2, initial=2, final=3, samplerate=rate)
 
 # Do some more things at various times!
 # (these are ignoring the t variable)
-def my_ramp(t, *args, **kwargs):
-    lambda_func = functions.sine_ramp(*args, **kwargs)
-    return lambda_func(t)
-
-
 analog2.sine_ramp(
     t=2.25, duration=3, initial=3, final=4, samplerate=rate, truncation=0.7
 )
