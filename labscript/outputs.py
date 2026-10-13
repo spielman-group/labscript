@@ -38,6 +38,7 @@ def _renamed_keyword(kwargs, old, new, value):
 
 class Output(Device):
     """Base class for all output classes."""
+
     description = "generic output"
     allowed_states = None
     dtype = np.float64
@@ -57,30 +58,37 @@ class Output(Device):
     ):
         """Instantiate an Output.
 
-        Args:
-            name (str): python variable name to assign the Output to.
-            parent_device (:obj:`IntermediateDevice`): Parent device the output
-                is connected to.
-            connection (str): Channel of parent device output is connected to.
-            limits (tuple, optional): `(min,max)` allowed for the output.
-            unit_conversion_class (:obj:`labscript_utils:labscript_utils.unitconversions`, optional):
-                Unit concersion class to use for the output.
-            unit_conversion_parameters (dict, optional): Dictonary or kwargs to
-                pass to the unit conversion class.
-            default_value (float, optional): Default value of the output if no
-                output is commanded.
-            **kwargs: Passed to :meth:`Device.__init__`.
+        Parameters
+        ----------
+        name : str
+            python variable name to assign the Output to.
+        parent_device : :obj:`IntermediateDevice`
+            Parent device the output is connected to.
+        connection : str
+            Channel of parent device output is connected to.
+        limits : tuple, optional
+            `(min,max)` allowed for the output.
+        unit_conversion_class : :obj:`labscript_utils:labscript_utils.unitconversions`, optional
+            Unit conversion class to use for the output.
+        unit_conversion_parameters : dict, optional
+            Dictionary or kwargs to pass to the unit conversion class.
+        default_value : float, optional
+            Default value of the output if no output is commanded.
+        **kwargs
+            Passed to :meth:`Device.__init__`.
 
-        Raises:
-            LabscriptError: Limits tuple is invalid or unit conversion class
-                units don't line up.
+        Raises
+        ------
+        LabscriptError
+            Limits tuple is invalid or unit conversion class units don't line up.
         """
-        Device.__init__(self,name,parent_device,connection, **kwargs)
+        super().__init__(name, parent_device, connection, **kwargs)
 
         self.instructions = {}
         # The time each instruction was asked for, by the tick it was rounded to:
         self._requested_times = {}
-        self.ramp_limits = [] # For checking ramps don't overlap
+        # For checking ramps don't overlap:
+        self.ramp_limits = []
         if default_value is not None:
             self.default_value = default_value
         if not unit_conversion_parameters:
@@ -91,21 +99,16 @@ class Output(Device):
             {"unit_conversion_parameters": list(unit_conversion_parameters.keys())}
         )
 
-        # Instantiate the calibration
         if unit_conversion_class is not None:
             self.calibration = unit_conversion_class(unit_conversion_parameters)
-            # Validate the calibration class
             for units in self.calibration.derived_units:
-                # Does the conversion to base units function exist for each defined unit
-                # type?
+                # Each defined unit type needs conversions to and from base units.
                 if not hasattr(self.calibration, f"{units}_to_base"):
                     raise LabscriptError(
                         f'The function "{units}_to_base" does not exist within the '
                         f'calibration "{self.unit_conversion_class}" used in output '
                         f'"{self.name}"'
                     )
-                # Does the conversion to base units function exist for each defined unit
-                # type?
                 if not hasattr(self.calibration, f"{units}_from_base"):
                     raise LabscriptError(
                         f'The function "{units}_from_base" does not exist within the '
@@ -113,10 +116,8 @@ class Output(Device):
                         f'"{self.name}"'
                     )
 
-        # If limits exist, check they are valid
-        # Here we specifically differentiate "None" from False as we will later have a
-        # conditional which relies on self.limits being either a correct tuple, or
-        # "None"
+        # A later conditional relies on self.limits being either a correct tuple or
+        # None, so None is told apart from False here.
         if limits is not None:
             if not isinstance(limits, tuple) or len(limits) != 2:
                 raise LabscriptError(
@@ -128,19 +129,19 @@ class Output(Device):
                     "The first element of the tuple must be lower than the second "
                     "element. Eg limits=(1, 2), NOT limits=(2, 1)"
                 )
-        # Save limits even if they are None        
         self.limits = limits
 
     @property
     def clock_limit(self):
-        """float: Returns the parent clock line's clock limit."""
+        """float: The parent clock line's clock limit."""
         parent = self.parent_clock_line
         return parent.clock_limit
 
     @property
     def trigger_delay(self):
-        """float: The earliest time output can be commanded from this device after a trigger.
-        This is nonzeo on secondary pseudoclocks due to triggering delays."""
+        """float: The earliest time output can be commanded from this device after a
+        trigger. This is nonzero on secondary pseudoclocks due to triggering delays.
+        """
         parent = self.pseudoclock_device
         if parent.is_master_pseudoclock:
             return 0
@@ -149,13 +150,17 @@ class Output(Device):
 
     @property
     def wait_delay(self):
-        """float: The earliest time output can be commanded from this device after a wait.
-        This is nonzeo on secondary pseudoclocks due to triggering delays and the fact
+        """float: The earliest time output can be commanded from this device after a
+        wait.
+
+        This is nonzero on secondary pseudoclocks due to triggering delays and the fact
         that the master clock doesn't provide a resume trigger to secondary clocks until
-        a minimum time has elapsed: compiler.wait_delay. This is so that if a wait is 
+        a minimum time has elapsed: compiler.wait_delay. This is so that if a wait is
         extremely short, the child clock is actually ready for the trigger.
         """
-        delay = compiler.wait_delay if self.pseudoclock_device.is_master_pseudoclock else 0
+        delay = (
+            compiler.wait_delay if self.pseudoclock_device.is_master_pseudoclock else 0
+        )
         return self.trigger_delay + delay
 
     def get_all_outputs(self):
@@ -163,52 +168,60 @@ class Output(Device):
 
         For ``Output``, this is `self`.
 
-        Returns:
-            list: List of children :obj:`Output`.
+        Returns
+        -------
+        list
+            List of children :obj:`Output`.
         """
         return [self]
-            
-    def apply_calibration(self,value,units):
+
+    def apply_calibration(self, value, units):
         """Apply the calibration defined by the unit conversion class, if present.
 
-        Args:
-            value (float): Value to apply calibration to.
-            units (str): Units to convert to. Must be defined by the unit
-                conversion class.
+        Parameters
+        ----------
+        value : float
+            Value to apply calibration to.
+        units : str
+            Units to convert to. Must be defined by the unit conversion class.
 
-        Returns:
-            float: Converted value.
+        Returns
+        -------
+        float
+            Converted value.
 
-        Raises:
-            LabscriptError: If no unit conversion class is defined or `units` not
-                in that class.
+        Raises
+        ------
+        LabscriptError
+            If no unit conversion class is defined or `units` not in that class.
         """
-        # Is a calibration in use?
         if self.unit_conversion_class is None:
             raise LabscriptError(
                 'You can not specify the units in an instruction for output '
                 f'"{self.name}" as it does not have a calibration associated with it'
             )
 
-        # Does a calibration exist for the units specified?
         if units not in self.calibration.derived_units:
             raise LabscriptError(
                 f'The units "{units}" does not exist within the calibration '
                 f'"{self.unit_conversion_class}" used in output "{self.name}"'
             )
 
-        # Return the calibrated value
-        return getattr(self.calibration,units+"_to_base")(value)
+        return getattr(self.calibration, units + "_to_base")(value)
 
-    def instruction_to_string(self,instruction):
-        """Gets a human readable description of an instruction.
+    def instruction_to_string(self, instruction):
+        """Get a human readable description of an instruction.
 
-        Args:
-            instruction (dict or str): Instruction to get description of,
-                or a fixed instruction defined in :attr:`allowed_states`.
+        Parameters
+        ----------
+        instruction : dict or str
+            Instruction to get description of, or a fixed instruction defined in
+            :attr:`allowed_states`.
 
-        Returns:
-            str: Instruction description.
+        Returns
+        -------
+        str
+            Instruction description.
         """
         if isinstance(instruction, dict):
             return instruction["description"]
@@ -218,23 +231,27 @@ class Output(Device):
             return str(instruction)
 
     def add_instruction(self, time, instruction, units=None):
-        """Adds a hardware instruction to the device instruction list.
+        """Add a hardware instruction to the device instruction list.
 
-        Args:
-            time (float): Time, in seconds, that the instruction begins.
-            instruction (dict or float): Instruction to add.
-            units (str, optional): Units instruction is in, if `instruction`
-                is a `float`.
+        Parameters
+        ----------
+        time : float
+            Time, in seconds, that the instruction begins.
+        instruction : dict or float
+            Instruction to add.
+        units : str, optional
+            Units instruction is in, if `instruction` is a `float`.
 
-        Raises:
-            LabscriptError: If time requested is not allowed or samplerate
-                is too fast.
+        Raises
+        ------
+        LabscriptError
+            If time requested is not allowed or samplerate is too fast.
         """
         if not compiler.start_called:
             raise LabscriptError("Cannot add instructions prior to calling start()")
         requested = time
         time = self._round_time(time)
-        if isinstance(instruction,dict):
+        if isinstance(instruction, dict):
             for key in ("end time", "initial time"):
                 instruction[key] = self._round_time(instruction[key])
         # Check that time is not negative or too soon after t=0:
@@ -258,7 +275,7 @@ class Output(Device):
                 current_value = self.instruction_to_string(self.instructions[time])
                 new_value = self.instruction_to_string(
                     self.apply_calibration(instruction, units)
-                    if units and not isinstance(instruction, dict) 
+                    if units and not isinstance(instruction, dict)
                     else instruction
                 )
                 sys.stderr.write(
@@ -285,7 +302,6 @@ class Output(Device):
                         f"{new_value} from t = {time}s to {instruction['end time']}s."
                     )
             self.ramp_limits.append((time, instruction["end time"]))
-            # Check that start time is before end time:
             if time > instruction["end time"]:
                 raise LabscriptError(
                     f"{self.description} {self.name} has been passed a function ramp "
@@ -294,13 +310,9 @@ class Output(Device):
                 )
             if instruction["clock rate"] == 0:
                 raise LabscriptError("A nonzero sample rate is required.")
-            # Else we have a "constant", single valued instruction
         else:
-            # If we have units specified, convert the value
             if units is not None:
-                # Apply the unit calibration now
                 instruction = self.apply_calibration(instruction, units)
-            # if we have limits, check the value is valid
             if self.limits:
                 if (instruction < self.limits[0]) or (instruction > self.limits[1]):
                     raise LabscriptError(
@@ -312,9 +324,11 @@ class Output(Device):
         self._requested_times[time] = requested
 
     def _round_time(self, t):
-        """Round `t` to this output's ticks if its pseudoclock is the master, whose
-        ticks are known now. A secondary's times are rounded to its ticks once its
-        trigger offsets are known, in `offset_instructions_from_trigger`."""
+        """Round `t` to this output's ticks if its pseudoclock is the master.
+
+        The master's ticks are known now. A secondary's times are rounded to its ticks
+        once its trigger offsets are known, in `offset_instructions_from_trigger`.
+        """
         pseudoclock = self.pseudoclock_device
         if pseudoclock is not None and pseudoclock.is_master_pseudoclock:
             return self.quantise_to_pseudoclock(t)
@@ -344,36 +358,42 @@ class Output(Device):
     def do_checks(self, trigger_times):
         """Basic error checking to ensure the user's instructions make sense.
 
-        Args:
-            trigger_times (iterable): Times to confirm don't conflict with
-                instructions.
+        Parameters
+        ----------
+        trigger_times : iterable
+            Times to confirm don't conflict with instructions.
 
-        Raises:
-            LabscriptError: If a trigger time conflicts with an instruction.
+        Raises
+        ------
+        LabscriptError
+            If a trigger time conflicts with an instruction.
         """
-        # Check if there are no instructions. Generate a warning and insert an
-        # instruction telling the output to remain at its default value.
+        # With no instructions, hold the default value for all time.
         if not self.instructions:
-            if not compiler.suppress_mild_warnings and not compiler.suppress_all_warnings:
+            if (
+                not compiler.suppress_mild_warnings
+                and not compiler.suppress_all_warnings
+            ):
                 sys.stderr.write(
                     f"WARNING: {self.name} has no instructions. It will be set to "
                     f"{self.instruction_to_string(self.default_value)} for all time.\n"
                 )
-            self.add_instruction(self.t0, self.default_value)  
-        # Check if there are no instructions at the initial time. Generate a warning and insert an
-        # instruction telling the output to start at its default value.
+            self.add_instruction(self.t0, self.default_value)
+        # With no instruction at the initial time, start at the default value.
         # Compare ticks: a secondary's times are only rounded to them later.
         tick = self.quantise_to_pseudoclock
         if tick(self.t0) not in {tick(t) for t in self.instructions}:
-            if not compiler.suppress_mild_warnings and not compiler.suppress_all_warnings:
-               sys.stderr.write(
+            if (
+                not compiler.suppress_mild_warnings
+                and not compiler.suppress_all_warnings
+            ):
+                sys.stderr.write(
                     f"WARNING: {self.name} has no initial instruction. It will "
                     "initially be set to "
                     f"{self.instruction_to_string(self.default_value)}.\n"
                 )
-            self.add_instruction(self.t0, self.default_value) 
-        # Check that ramps have instructions following them.
-        # If they don't, insert an instruction telling them to hold their final value.
+            self.add_instruction(self.t0, self.default_value)
+        # A ramp with no instruction after it holds its final value.
         ticks = {tick(t) for t in self.instructions}
         for instruction in list(self.instructions.values()):
             if (
@@ -385,7 +405,6 @@ class Output(Device):
                     instruction["function"](instruction["span"]),
                     instruction["units"],
                 )
-        # Checks for trigger times:
         for trigger_time in trigger_times:
             trigger_time = tick(trigger_time)
             delay_end = tick(trigger_time + self.trigger_delay)
@@ -403,7 +422,7 @@ class Output(Device):
                         f"{inst['end time']}. This overlaps with a trigger at "
                         f"t={trigger_time}, and so cannot be performed."
                     )
-                # Check that nothing is happening during the delay time after the trigger:
+                # Check that nothing is happening during the delay after the trigger:
                 if trigger_time < t < delay_end:
                     raise LabscriptError(
                         f"{self.description} {self.name} has an instruction at t={t}. "
@@ -424,20 +443,21 @@ class Output(Device):
                     )
 
     def offset_instructions_from_trigger(self, trigger_times):
-        """Subtracts self.trigger_delay from all instructions at or after each trigger_time.
+        """Subtract `self.trigger_delay` from all instructions at or after each trigger.
 
-        Args:
-            trigger_times (iterable): Times of all trigger events.
+        Parameters
+        ----------
+        trigger_times : iterable
+            Times of all trigger events.
         """
         offset_instructions = {}
         sources = {}
         for t, instruction in self.instructions.items():
-            # How much of a delay is there for this instruction? That depends how many triggers there are prior to it:
+            # The delay depends on how many triggers there are prior to the instruction.
             tick = self.quantise_to_pseudoclock
             n_triggers_prior = len(
                 [time for time in trigger_times if tick(time) < tick(t)]
             )
-            # The cumulative offset at this point in time:
             offset = self.trigger_delay * n_triggers_prior + trigger_times[0]
             if isinstance(instruction, dict):
                 offset_instruction = instruction.copy()
@@ -465,32 +485,31 @@ class Output(Device):
             sources[new_time] = t
         self.instructions = offset_instructions
 
-        # offset each of the ramp_limits for use in the calculation within
-        # Pseudoclock/ClockLine so that the times in list are consistent with the ones
-        # in self.instructions
+        # Offset each of the ramp_limits, used by Pseudoclock/ClockLine, so that their
+        # times are consistent with the ones in self.instructions.
         for i, times in enumerate(self.ramp_limits):
             n_triggers_prior = len(
                 [time for time in trigger_times if tick(time) < tick(times[0])]
             )
-            # The cumulative offset at this point in time:
             offset = self.trigger_delay * n_triggers_prior + trigger_times[0]
 
-            # offset start and end time of ramps
-            # NOTE: This assumes ramps cannot proceed across a trigger command
-            #       (for instance you cannot ramp an output across a WAIT)
+            # This assumes ramps cannot proceed across a trigger command (for
+            # instance you cannot ramp an output across a WAIT).
             self.ramp_limits[i] = (
                 self.quantise_to_pseudoclock(times[0] - offset),
                 self.quantise_to_pseudoclock(times[1] - offset),
             )
 
     def get_change_times(self):
-        """If this function is being called, it means that the parent
-        Pseudoclock has requested a list of times that this output changes
-        state.
+        """Get the times this output changes state.
 
-        Returns:
-            list: List of times output changes values.
-        """        
+        Called when the parent Pseudoclock requests them.
+
+        Returns
+        -------
+        list
+            List of times output changes values.
+        """
         times = list(self.instructions.keys())
         times.sort()
 
@@ -500,7 +519,9 @@ class Output(Device):
                 current_dict_time = self.instructions[time]
             elif (
                 current_dict_time is not None
-                and current_dict_time['initial time'] < time < current_dict_time['end time']
+                and current_dict_time["initial time"]
+                < time
+                < current_dict_time["end time"]
             ):
                 raise LabscriptError(
                     f"{self.description} {self.name} has an instruction at "
@@ -515,40 +536,43 @@ class Output(Device):
         return times
 
     def get_ramp_times(self):
-        """If this is being called, then it means the parent Pseuedoclock
-        has asked for a list of the output ramp start and stop times.
+        """Get the start and stop times of this output's ramps.
 
-        Returns:
-            list: List of (start, stop) times of ramps for this Output.
+        Called when the parent Pseudoclock requests them.
+
+        Returns
+        -------
+        list
+            List of (start, stop) times of ramps for this Output.
         """
         return self.ramp_limits
 
     def make_timeseries(self, change_times):
-        """If this is being called, then it means the parent Pseudoclock
-        has asked for a list of this output's states at each time in
-        change_times. (Which are the times that one or more connected
-        outputs in the same pseudoclock change state). By state, I don't
-        mean the value of the output at that moment, rather I mean what
-        instruction it has. This might be a single value, or it might
-        be a reference to a function for a ramp etc. This list of states
-        is stored in self.timeseries rather than being returned."""
+        """Make the list of this output's states at each time in `change_times`.
+
+        Called when the parent Pseudoclock requests it. `change_times` are the times
+        that one or more connected outputs in the same pseudoclock change state. By
+        state is meant the instruction the output has at that time, rather than its
+        value: a single value, a reference to a function for a ramp, etc. The list of
+        states is stored in `self.timeseries` rather than returned.
+        """
         self.timeseries = []
         i = 0
         time_len = len(self.times)
         for change_time in change_times:
             while i < time_len and change_time >= self.times[i]:
                 i += 1
-            self.timeseries.append(self.instructions[self.times[i-1]])     
+            self.timeseries.append(self.instructions[self.times[i - 1]])
 
-    def expand_timeseries(self,all_times,flat_all_times_len):
-        """This function evaluates the ramp functions in self.timeseries
-        at the time points in all_times, and creates an array of output
-        values at those times.  These are the values that this output
-        should update to on each clock tick, and are the raw values that
-        should be used to program the output device.  They are stored
-        in self.raw_output."""
-        # If this output is not ramping, then its timeseries should
-        # not be expanded. It's already as expanded as it'll get.
+    def expand_timeseries(self, all_times, flat_all_times_len):
+        """Evaluate the ramp functions in `self.timeseries` at the times in `all_times`.
+
+        This creates an array of output values at those times. These are the values
+        that this output should update to on each clock tick, and are the raw values
+        that should be used to program the output device. They are stored in
+        `self.raw_output`.
+        """
+        # A non-ramping output's timeseries is already as expanded as it will get.
         if not self.parent_clock_line.ramping_allowed:
             self.raw_output = np.array(self.timeseries, dtype=np.dtype(self.dtype))
             return
@@ -558,37 +582,37 @@ class Output(Device):
             if np.iterable(time):
                 time_len = len(time)
                 if isinstance(self.timeseries[i], dict):
-                    # We evaluate the functions at the midpoints of the
-                    # timesteps in order to remove the zero-order hold
-                    # error introduced by sampling an analog signal:
+                    # Evaluate the functions at the midpoints of the timesteps, to
+                    # remove the zero-order hold error introduced by sampling an
+                    # analog signal:
                     try:
-                        midpoints = time + 0.5*(time[1] - time[0])
+                        midpoints = time + 0.5 * (time[1] - time[0])
                     except IndexError:
-                        # Time array might be only one element long, so we
-                        # can't calculate the step size this way. That's
-                        # ok, the final midpoint is determined differently
-                        # anyway:
+                        # A one-element time array has no step size; the final
+                        # midpoint is determined differently anyway.
                         midpoints = np.zeros(1)
-                    # We need to know when the first clock tick is after
-                    # this ramp ends. It's either an array element or a
-                    # single number depending on if this ramp is followed
-                    # by another ramp or not:
-                    next_time = all_times[i+1][0] if np.iterable(all_times[i+1]) else all_times[i+1]
-                    midpoints[-1] = time[-1] + 0.5*(next_time - time[-1])
+                    # The first clock tick after this ramp ends is an array element or
+                    # a single number, depending on whether another ramp follows.
+                    next_time = (
+                        all_times[i + 1][0]
+                        if np.iterable(all_times[i + 1])
+                        else all_times[i + 1]
+                    )
+                    midpoints[-1] = time[-1] + 0.5 * (next_time - time[-1])
                     # These are differences of absolute float times, so values carry
                     # float noise in their last bit, either way. Counting each sample's
                     # time in the ramp in whole ticks would make them exact.
                     outarray = self.timeseries[i]["function"](
                         midpoints - self.timeseries[i]["initial time"]
                     )
-                    # Now that we have the list of output points, pass them through the unit calibration
                     if self.timeseries[i]["units"] is not None:
                         outarray = self.apply_calibration(
                             outarray, self.timeseries[i]["units"]
                         )
-                    # if we have limits, check the value is valid
                     if self.limits:
-                        if ((outarray<self.limits[0])|(outarray>self.limits[1])).any():
+                        if (
+                            (outarray < self.limits[0]) | (outarray > self.limits[1])
+                        ).any():
                             raise LabscriptError(
                                 f"The function {self.timeseries[i]['function']} called "
                                 f'on "{self.name}" at t={midpoints[0]} generated a '
@@ -598,12 +622,12 @@ class Output(Device):
                 else:
                     outarray = np.empty(time_len, dtype=self.dtype)
                     outarray.fill(self.timeseries[i])
-                outputarray[j:j+time_len] = outarray
+                outputarray[j : j + time_len] = outarray
                 j += time_len
             else:
                 outputarray[j] = self.timeseries[i]
                 j += 1
-        del self.timeseries # don't need this any more.
+        del self.timeseries  # don't need this any more.
         self.raw_output = outputarray
 
 
@@ -614,6 +638,7 @@ class AnalogQuantity(Output):
     class directly. Its ramps need a clock line with `ramping_allowed`; on one
     without, only constant values can be set.
     """
+
     description = "analog quantity"
     default_value = 0
 
@@ -630,26 +655,39 @@ class AnalogQuantity(Output):
         Defined by
         `f(t) = ((final - initial)/duration)*t + initial`
 
-        Args:
-            t (float): Time, in seconds, to begin the ramp.
-            duration (float): Length, in seconds, of the ramp.
-            initial (float): Initial output value, at time `t`.
-            final (float): Final output value, at time `t+duration`.
-            samplerate (float): Rate, in Hz, to update the output.
-            units: Units the output values are given in, as specified by the
-                unit conversion class.
-            truncation (float, optional): Fraction of ramp to perform. Must be between 0 and 1.
+        Parameters
+        ----------
+        t : float
+            Time, in seconds, to begin the ramp.
+        duration : float
+            Length, in seconds, of the ramp.
+        initial : float
+            Initial output value, at time `t`.
+        final : float
+            Final output value, at time `t+duration`.
+        samplerate : float
+            Rate, in Hz, to update the output.
+        units
+            Units the output values are given in, as specified by the unit
+            conversion class.
+        truncation : float, optional
+            Fraction of ramp to perform. Must be between 0 and 1.
 
-        Returns:
-            float: Length of time ramp will take to complete. 
+        Returns
+        -------
+        float
+            Length of time ramp will take to complete.
         """
         self._check_truncation(truncation)
         if truncation > 0:
-            # if start and end value are the same, we don't need to ramp and can save
-            # the sample ticks etc
+            # If start and end value are the same, there is no need to ramp, and the
+            # sample ticks etc. are saved.
             if initial == final:
                 self.constant(t, initial, units)
-                if not compiler.suppress_mild_warnings and not compiler.suppress_all_warnings:
+                if (
+                    not compiler.suppress_mild_warnings
+                    and not compiler.suppress_all_warnings
+                ):
                     sys.stderr.write(
                         f"WARNING: {self.__class__.__name__} '{self.name}' has the "
                         f"same initial and final value at time t={t:.10f}s with "
@@ -681,116 +719,161 @@ class AnalogQuantity(Output):
         Defined by
         `f(t) = amplitude*sin(angfreq*t + phase) + dc_offset`
 
-        Args:
-            t (float): Time, in seconds, to begin the ramp.
-            duration (float): Length, in seconds, of the ramp.
-            amplitude (float): Amplitude of the modulation.
-            angfreq (float): Angular frequency, in radians per second.
-            phase (float): Phase offset of the sine wave, in radians.
-            dc_offset (float): DC offset of output away from 0.
-            samplerate (float): Rate, in Hz, to update the output.
-            units: Units the output values are given in, as specified by the
-                unit conversion class.
-            truncation (float, optional): Fraction of duration to perform. Must be between 0 and 1.
+        Parameters
+        ----------
+        t : float
+            Time, in seconds, to begin the ramp.
+        duration : float
+            Length, in seconds, of the ramp.
+        amplitude : float
+            Amplitude of the modulation.
+        angfreq : float
+            Angular frequency, in radians per second.
+        phase : float
+            Phase offset of the sine wave, in radians.
+        dc_offset : float
+            DC offset of output away from 0.
+        samplerate : float
+            Rate, in Hz, to update the output.
+        units
+            Units the output values are given in, as specified by the unit
+            conversion class.
+        truncation : float, optional
+            Fraction of duration to perform. Must be between 0 and 1.
 
-        Returns:
-            float: Length of time modulation will take to complete. Equivalent to `truncation*duration`.
+        Returns
+        -------
+        float
+            Length of time modulation will take to complete. Equivalent to
+            `truncation*duration`.
         """
         self._check_truncation(truncation)
         if truncation > 0:
             self._add_ramp(
-                t, duration, truncation*duration, "sine wave", samplerate, units,
+                t, duration, truncation * duration, "sine wave", samplerate, units,
                 functions.sine, amplitude, angfreq, phase, dc_offset,
             )
-        return truncation*duration
+        return truncation * duration
 
     def sine_ramp(
         self, t, duration, initial, final, samplerate, units=None, truncation=1.
     ):
-        """Command the output to perform a ramp defined by one half period of a squared sine wave.
+        """Command the output to perform a ramp of one half period of a squared sine.
 
         Defined by
         `f(t) = (final-initial)*(sin(pi*t/(2*duration)))^2 + initial`
 
-        Args:
-            t (float): Time, in seconds, to begin the ramp.
-            duration (float): Length, in seconds, of the ramp.
-            initial (float): Initial output value, at time `t`.
-            final (float): Final output value, at time `t+duration`.
-            samplerate (float): Rate, in Hz, to update the output.
-            units: Units the output values are given in, as specified by the
-                unit conversion class.
-            truncation (float, optional): Fraction of ramp to perform. Must be between 0 and 1.
+        Parameters
+        ----------
+        t : float
+            Time, in seconds, to begin the ramp.
+        duration : float
+            Length, in seconds, of the ramp.
+        initial : float
+            Initial output value, at time `t`.
+        final : float
+            Final output value, at time `t+duration`.
+        samplerate : float
+            Rate, in Hz, to update the output.
+        units
+            Units the output values are given in, as specified by the unit
+            conversion class.
+        truncation : float, optional
+            Fraction of ramp to perform. Must be between 0 and 1.
 
-        Returns:
-            float: Length of time ramp will take to complete. 
+        Returns
+        -------
+        float
+            Length of time ramp will take to complete.
         """
         self._check_truncation(truncation)
         if truncation > 0:
             self._add_ramp(
-                t, duration, truncation*duration, "sinusoidal ramp", samplerate, units,
-                functions.sine_ramp, initial, final,
+                t, duration, truncation * duration, "sinusoidal ramp", samplerate,
+                units, functions.sine_ramp, initial, final,
             )
-        return truncation*duration
+        return truncation * duration
 
     def sine4_ramp(
         self, t, duration, initial, final, samplerate, units=None, truncation=1.
     ):
-        """Command the output to perform an increasing ramp defined by one half period of a quartic sine wave.
+        """Command the output to perform an increasing ramp of one half period of a
+        quartic sine wave.
 
         Defined by
         `f(t) = (final-initial)*(sin(pi*t/(2*duration)))^4 + initial`
 
-        Args:
-            t (float): Time, in seconds, to begin the ramp.
-            duration (float): Length, in seconds, of the ramp.
-            initial (float): Initial output value, at time `t`.
-            final (float): Final output value, at time `t+duration`.
-            samplerate (float): Rate, in Hz, to update the output.
-            units: Units the output values are given in, as specified by the
-                unit conversion class.
-            truncation (float, optional): Fraction of ramp to perform. Must be between 0 and 1.
+        Parameters
+        ----------
+        t : float
+            Time, in seconds, to begin the ramp.
+        duration : float
+            Length, in seconds, of the ramp.
+        initial : float
+            Initial output value, at time `t`.
+        final : float
+            Final output value, at time `t+duration`.
+        samplerate : float
+            Rate, in Hz, to update the output.
+        units
+            Units the output values are given in, as specified by the unit
+            conversion class.
+        truncation : float, optional
+            Fraction of ramp to perform. Must be between 0 and 1.
 
-        Returns:
-            float: Length of time ramp will take to complete. 
+        Returns
+        -------
+        float
+            Length of time ramp will take to complete.
         """
         self._check_truncation(truncation)
         if truncation > 0:
             self._add_ramp(
-                t, duration, truncation*duration, "sinusoidal ramp", samplerate, units,
-                functions.sine4_ramp, initial, final,
+                t, duration, truncation * duration, "sinusoidal ramp", samplerate,
+                units, functions.sine4_ramp, initial, final,
             )
-        return truncation*duration
+        return truncation * duration
 
     def sine4_reverse_ramp(
         self, t, duration, initial, final, samplerate, units=None, truncation=1.
     ):
-        """Command the output to perform `sine4_ramp` backwards in time: from
-        `final` at `t` to `initial` at `t+duration`.
+        """Command the output to perform `sine4_ramp` backwards in time.
+
+        The output goes from `final` at `t` to `initial` at `t+duration`.
 
         Defined by
         `f(t) = (final-initial)*(sin(pi/2+pi*t/(2*duration)))^4 + initial`
 
-        Args:
-            t (float): Time, in seconds, to begin the ramp.
-            duration (float): Length, in seconds, of the ramp.
-            initial (float): Output value the ramp ends at, at time `t+duration`.
-            final (float): Output value the ramp starts at, at time `t`.
-            samplerate (float): Rate, in Hz, to update the output.
-            units: Units the output values are given in, as specified by the
-                unit conversion class.
-            truncation (float, optional): Fraction of ramp to perform. Must be between 0 and 1.
+        Parameters
+        ----------
+        t : float
+            Time, in seconds, to begin the ramp.
+        duration : float
+            Length, in seconds, of the ramp.
+        initial : float
+            Output value the ramp ends at, at time `t+duration`.
+        final : float
+            Output value the ramp starts at, at time `t`.
+        samplerate : float
+            Rate, in Hz, to update the output.
+        units
+            Units the output values are given in, as specified by the unit
+            conversion class.
+        truncation : float, optional
+            Fraction of ramp to perform. Must be between 0 and 1.
 
-        Returns:
-            float: Length of time ramp will take to complete. 
+        Returns
+        -------
+        float
+            Length of time ramp will take to complete.
         """
         self._check_truncation(truncation)
         if truncation > 0:
             self._add_ramp(
-                t, duration, truncation*duration, "sinusoidal ramp", samplerate, units,
-                functions.sine4_reverse_ramp, initial, final,
+                t, duration, truncation * duration, "sinusoidal ramp", samplerate,
+                units, functions.sine4_reverse_ramp, initial, final,
             )
-        return truncation*duration
+        return truncation * duration
 
     def exp_ramp(
         self,
@@ -805,39 +888,53 @@ class AnalogQuantity(Output):
         truncation_type="linear",
         **kwargs,
     ):
-        """Exponential ramp whose rate of change is set by an asymptotic value (zero argument).
-        
-        Args:
-            t (float): time to start the ramp
-            duration (float): duration of the ramp
-            initial (float): initial value of the ramp (sans truncation)
-            final (float): final value of the ramp (sans truncation)
-            zero (float): asymptotic value of the exponential decay/rise, i.e. limit as t --> inf
-            samplerate (float): rate to sample the function
-            units: unit conversion to apply to specified values before generating raw output
-            truncation_type (str): 
+        """Exponential ramp whose rate of change is set by an asymptotic value.
 
-                * `'linear'` truncation stops the ramp when it reaches the value given by the 
-                  truncation parameter, which must be between initial and final
-                * `'exponential'` truncation stops the ramp after a period of truncation*duration
-                  In this instance, the truncation parameter should be between 0 (full truncation)
-                  and 1 (no truncation). 
+        The asymptotic value is the `zero` argument.
 
+        Parameters
+        ----------
+        t : float
+            time to start the ramp
+        duration : float
+            duration of the ramp
+        initial : float
+            initial value of the ramp (sans truncation)
+        final : float
+            final value of the ramp (sans truncation)
+        samplerate : float
+            rate to sample the function
+        zero : float
+            asymptotic value of the exponential decay/rise, i.e. limit as t --> inf
+        units
+            unit conversion to apply to specified values before generating raw output
+        truncation : float, optional
+            Where to truncate the ramp; its meaning depends on `truncation_type`.
+        truncation_type : str
+            * `'linear'` truncation stops the ramp when it reaches the value given by
+              the truncation parameter, which must be between initial and final
+            * `'exponential'` truncation stops the ramp after a period of
+              truncation*duration. In this instance, the truncation parameter should
+              be between 0 (full truncation) and 1 (no truncation).
+        **kwargs
+            The deprecated names `trunc` and `trunc_type`, for `truncation` and
+            `truncation_type`.
         """
         truncation = _renamed_keyword(kwargs, "trunc", "truncation", truncation)
         truncation_type = _renamed_keyword(
             kwargs, "trunc_type", "truncation_type", truncation_type
         )
         if truncation is not None:
-            # Computed the truncated duration based on the truncation_type
             if truncation_type == "linear":
                 self._check_truncation(
                     truncation, min(initial, final), max(initial, final)
                 )
                 # Truncate the ramp when it reaches the value truncation
-                trunc_duration = duration * \
-                    np.log((initial-zero)/(truncation-zero)) / \
-                    np.log((initial-zero)/(final-zero))
+                trunc_duration = (
+                    duration
+                    * np.log((initial - zero) / (truncation - zero))
+                    / np.log((initial - zero) / (final - zero))
+                )
             elif truncation_type == "exponential":
                 # Truncate the ramps duration by a fraction truncation
                 self._check_truncation(truncation)
@@ -871,34 +968,49 @@ class AnalogQuantity(Output):
     ):
         """Exponential ramp whose rate of change is set by the time_constant.
 
-        Args:
-            t (float): time to start the ramp
-            duration (float): duration of the ramp
-            initial (float): initial value of the ramp (sans truncation)
-            final (float): final value of the ramp (sans truncation)
-            time_constant (float): 1/e time of the exponential decay/rise
-            samplerate (float): rate to sample the function
-            units: unit conversion to apply to specified values before generating raw output
-            truncation_type (str): 
-
-                * `'linear'` truncation stops the ramp when it reaches the value given by the 
-                  truncation parameter, which must be between initial and final
-                * `'exponential'` truncation stops the ramp after a period of truncation*duration
-                  In this instance, the truncation parameter should be between 0 (full truncation)
-                  and 1 (no truncation).
-
+        Parameters
+        ----------
+        t : float
+            time to start the ramp
+        duration : float
+            duration of the ramp
+        initial : float
+            initial value of the ramp (sans truncation)
+        final : float
+            final value of the ramp (sans truncation)
+        time_constant : float
+            1/e time of the exponential decay/rise
+        samplerate : float
+            rate to sample the function
+        units
+            unit conversion to apply to specified values before generating raw output
+        truncation : float, optional
+            Where to truncate the ramp; its meaning depends on `truncation_type`.
+        truncation_type : str
+            * `'linear'` truncation stops the ramp when it reaches the value given by
+              the truncation parameter, which must be between initial and final
+            * `'exponential'` truncation stops the ramp after a period of
+              truncation*duration. In this instance, the truncation parameter should
+              be between 0 (full truncation) and 1 (no truncation).
+        **kwargs
+            The deprecated names `trunc` and `trunc_type`, for `truncation` and
+            `truncation_type`.
         """
         truncation = _renamed_keyword(kwargs, "trunc", "truncation", truncation)
         truncation_type = _renamed_keyword(
             kwargs, "trunc_type", "truncation_type", truncation_type
         )
         if truncation is not None:
-            zero = (final-initial*np.exp(-duration/time_constant)) / \
-                (1-np.exp(-duration/time_constant))
+            zero = (final - initial * np.exp(-duration / time_constant)) / (
+                1 - np.exp(-duration / time_constant)
+            )
             if truncation_type == "linear":
-                self._check_truncation(truncation, min(initial, final), max(initial, final))
-                trunc_duration = time_constant * \
-                    np.log((initial-zero)/(truncation-zero))
+                self._check_truncation(
+                    truncation, min(initial, final), max(initial, final)
+                )
+                trunc_duration = time_constant * np.log(
+                    (initial - zero) / (truncation - zero)
+                )
             elif truncation_type == 'exponential':
                 self._check_truncation(truncation)
                 trunc_duration = truncation * duration
@@ -920,28 +1032,38 @@ class AnalogQuantity(Output):
     def piecewise_accel_ramp(
         self, t, duration, initial, final, samplerate, units=None, truncation=1.
     ):
-        """Changes the output so that the second derivative follows one period of a triangle wave.
+        """Change the output so its second derivative follows one triangle wave period.
 
-        Args:
-            t (float): Time, in seconds, at which to begin the ramp.
-            duration (float): Duration of the ramp, in seconds.
-            initial (float): Initial output value at time `t`.
-            final (float): Final output value at time `t+duration`.
-            samplerate (float): Update rate of the output, in Hz.
-            units: Units, defined by the unit conversion class, the value is in.
-            truncation (float, optional): Fraction of ramp to perform. Default 1.0.
+        Parameters
+        ----------
+        t : float
+            Time, in seconds, at which to begin the ramp.
+        duration : float
+            Duration of the ramp, in seconds.
+        initial : float
+            Initial output value at time `t`.
+        final : float
+            Final output value at time `t+duration`.
+        samplerate : float
+            Update rate of the output, in Hz.
+        units
+            Units, defined by the unit conversion class, the value is in.
+        truncation : float, optional
+            Fraction of ramp to perform. Default 1.0.
 
-        Returns:
-            float: Time the ramp will take to complete.
+        Returns
+        -------
+        float
+            Time the ramp will take to complete.
         """
         self._check_truncation(truncation)
         if truncation > 0:
             self._add_ramp(
-                t, duration, truncation*duration, "piecewise linear accelleration ramp",
-                samplerate, units,
+                t, duration, truncation * duration,
+                "piecewise linear accelleration ramp", samplerate, units,
                 functions.piecewise_accel, initial, final,
             )
-        return truncation*duration
+        return truncation * duration
 
     def square_wave(
         self,
@@ -981,51 +1103,58 @@ class AnalogQuantity(Output):
         requested `samplerate`), particularly if the actual samplerate is not a
         multiple of `frequency`.
 
-        Args:
-            t (float): The time at which to start the square wave.
-            duration (float): The duration for which to output a square wave
-                when `truncation` is set to `1`. When `truncation` is set to a
-                value less than `1`, the actual duration will be shorter than
-                `duration` by that factor.
-            amplitude (float): The peak-to-peak amplitude of the square wave.
-                See above for an example of how to calculate the HIGH/LOW output
-                values given the `amplitude` and `offset` values.
-            frequency (float): The frequency of the square wave, in Hz.
-            phase (float): The initial phase of the square wave. Note that the
-                square wave is defined such that the phase goes from 0 to 1 (NOT
-                2 pi) over one cycle, so setting `phase=0.5` will start the
-                square wave advanced by 1/2 of a cycle. Setting `phase` equal to
-                `duty_cycle` will cause the waveform to start LOW rather than
-                HIGH.
-            offset (float): The offset of the square wave, which is the value
-                halfway between the LOW and HIGH output values. Note that this
-                is NOT the LOW output value; setting `offset` to `0` will cause
-                the HIGH/LOW values to be symmetrically split around `0`. See
-                above for an example of how to calculate the HIGH/LOW output
-                values given the `amplitude` and `offset` values.
-            duty_cycle (float): The fraction of the cycle for which the output
-                should be HIGH. This should be a number between zero and one
-                inclusively. For example, setting `duty_cycle=0.1` will
-                create a square wave which outputs HIGH over 10% of the
-                cycle and outputs LOW over 90% of the cycle.
-            samplerate (float): The requested rate at which to update the output
-                value. Note that the actual samplerate used may be different if,
-                for example, another output of the same device has a
-                simultaneous ramp with a different requested `samplerate`, or if
-                `1 / samplerate` isn't an integer multiple of the pseudoclock's
-                timing resolution.
-            units (str, optional): The units of the output values. If set to
-                `None` then the output's base units will be used. Defaults to
-                `None`.
-            truncation (float, optional): The actual duration of the square wave
-                will be `duration * truncation` and `truncation` must be set to
-                a value in the range [0, 1] (inclusively). Set to `1` to output
-                the full duration of the square wave. Setting it to `0` will
-                skip the square wave entirely. Defaults to `1.`.
+        Parameters
+        ----------
+        t : float
+            The time at which to start the square wave.
+        duration : float
+            The duration for which to output a square wave when `truncation` is
+            set to `1`. When `truncation` is set to a value less than `1`, the
+            actual duration will be shorter than `duration` by that factor.
+        amplitude : float
+            The peak-to-peak amplitude of the square wave. See above for an
+            example of how to calculate the HIGH/LOW output values given the
+            `amplitude` and `offset` values.
+        frequency : float
+            The frequency of the square wave, in Hz.
+        phase : float
+            The initial phase of the square wave. Note that the square wave is
+            defined such that the phase goes from 0 to 1 (NOT 2 pi) over one
+            cycle, so setting `phase=0.5` will start the square wave advanced by
+            1/2 of a cycle. Setting `phase` equal to `duty_cycle` will cause the
+            waveform to start LOW rather than HIGH.
+        offset : float
+            The offset of the square wave, which is the value halfway between
+            the LOW and HIGH output values. Note that this is NOT the LOW output
+            value; setting `offset` to `0` will cause the HIGH/LOW values to be
+            symmetrically split around `0`. See above for an example of how to
+            calculate the HIGH/LOW output values given the `amplitude` and
+            `offset` values.
+        duty_cycle : float
+            The fraction of the cycle for which the output should be HIGH. This
+            should be a number between zero and one inclusively. For example,
+            setting `duty_cycle=0.1` will create a square wave which outputs
+            HIGH over 10% of the cycle and outputs LOW over 90% of the cycle.
+        samplerate : float
+            The requested rate at which to update the output value. Note that
+            the actual samplerate used may be different if, for example, another
+            output of the same device has a simultaneous ramp with a different
+            requested `samplerate`, or if `1 / samplerate` isn't an integer
+            multiple of the pseudoclock's timing resolution.
+        units : str, optional
+            The units of the output values. If set to `None` then the output's
+            base units will be used. Defaults to `None`.
+        truncation : float, optional
+            The actual duration of the square wave will be `duration *
+            truncation` and `truncation` must be set to a value in the range
+            [0, 1] (inclusively). Set to `1` to output the full duration of the
+            square wave. Setting it to `0` will skip the square wave entirely.
+            Defaults to `1.`.
 
-        Returns:
-            duration (float): The actual duration of the square wave, accounting
-                for `truncation`.
+        Returns
+        -------
+        float
+            The actual duration of the square wave, accounting for `truncation`.
         """
         # Convert to values used by square_wave_levels, then call that method.
         level_0 = offset + 0.5 * amplitude
@@ -1064,47 +1193,53 @@ class AnalogQuantity(Output):
         parameterized differently. See that method's docstring for more
         information.
 
-        Args:
-            t (float): The time at which to start the square wave.
-            duration (float): The duration for which to output a square wave
-                when `truncation` is set to `1`. When `truncation` is set to a
-                value less than `1`, the actual duration will be shorter than
-                `duration` by that factor.
-            level_0 (float): The initial level of the square wave, when the
-                phase is zero.
-            level_1 (float): The other level of the square wave.
-            frequency (float): The frequency of the square wave, in Hz.
-            phase (float): The initial phase of the square wave. Note that the
-                square wave is defined such that the phase goes from 0 to 1 (NOT
-                2 pi) over one cycle, so setting `phase=0.5` will start the
-                square wave advanced by 1/2 of a cycle. Setting `phase` equal to
-                `duty_cycle` will cause the waveform to start at `level_1`
-                rather than `level_0`.
-            duty_cycle (float): The fraction of the cycle for which the output
-                should be set to `level_0`. This should be a number between zero
-                and one inclusively. For example, setting `duty_cycle=0.1` will
-                create a square wave which outputs `level_0` over 10% of the
-                cycle and outputs `level_1` over 90% of the cycle.
-            samplerate (float): The requested rate at which to update the output
-                value. Note that the actual samplerate used may be different if,
-                for example, another output of the same device has a
-                simultaneous ramp with a different requested `samplerate`, or if
-                `1 / samplerate` isn't an integer multiple of the pseudoclock's
-                timing resolution.
-            units (str, optional): The units of the output values. If set to
-                `None` then the output's base units will be used. Defaults to
-                `None`.
-            truncation (float, optional): The actual duration of the square wave
-                will be `duration * truncation` and `truncation` must be set to
-                a value in the range [0, 1] (inclusively). Set to `1` to output
-                the full duration of the square wave. Setting it to `0` will
-                skip the square wave entirely. Defaults to `1.`.
+        Parameters
+        ----------
+        t : float
+            The time at which to start the square wave.
+        duration : float
+            The duration for which to output a square wave when `truncation` is
+            set to `1`. When `truncation` is set to a value less than `1`, the
+            actual duration will be shorter than `duration` by that factor.
+        level_0 : float
+            The initial level of the square wave, when the phase is zero.
+        level_1 : float
+            The other level of the square wave.
+        frequency : float
+            The frequency of the square wave, in Hz.
+        phase : float
+            The initial phase of the square wave. Note that the square wave is
+            defined such that the phase goes from 0 to 1 (NOT 2 pi) over one
+            cycle, so setting `phase=0.5` will start the square wave advanced by
+            1/2 of a cycle. Setting `phase` equal to `duty_cycle` will cause the
+            waveform to start at `level_1` rather than `level_0`.
+        duty_cycle : float
+            The fraction of the cycle for which the output should be set to
+            `level_0`. This should be a number between zero and one inclusively.
+            For example, setting `duty_cycle=0.1` will create a square wave which
+            outputs `level_0` over 10% of the cycle and outputs `level_1` over
+            90% of the cycle.
+        samplerate : float
+            The requested rate at which to update the output value. Note that
+            the actual samplerate used may be different if, for example, another
+            output of the same device has a simultaneous ramp with a different
+            requested `samplerate`, or if `1 / samplerate` isn't an integer
+            multiple of the pseudoclock's timing resolution.
+        units : str, optional
+            The units of the output values. If set to `None` then the output's
+            base units will be used. Defaults to `None`.
+        truncation : float, optional
+            The actual duration of the square wave will be `duration *
+            truncation` and `truncation` must be set to a value in the range
+            [0, 1] (inclusively). Set to `1` to output the full duration of the
+            square wave. Setting it to `0` will skip the square wave entirely.
+            Defaults to `1.`.
 
-        Returns:
-            duration (float): The actual duration of the square wave, accounting
-                for `truncation`.
+        Returns
+        -------
+        float
+            The actual duration of the square wave, accounting for `truncation`.
         """
-        # Check the argument values.
         self._check_truncation(truncation)
         if duty_cycle < 0 or duty_cycle > 1:
             raise LabscriptError(
@@ -1122,19 +1257,26 @@ class AnalogQuantity(Output):
     def customramp(self, t, duration, function, *args, **kwargs):
         """Define a custom function for the output.
 
-        Args:
-            t (float): Time, in seconds, to start the function.
-            duration (float): Length in time, in seconds, to perform the function.
-            function (func): Function handle that defines the output waveform.
-                First argument is the relative time from function start, in seconds.
-            *args: Arguments passed to `function`.
-            **kwargs: Keyword arguments pass to `function`.
-                Standard kwargs common to other output functions are: `units`, 
-                `samplerate`, and `truncation`. These kwargs are optional, but will
-                not be passed to `function` if present.
+        Parameters
+        ----------
+        t : float
+            Time, in seconds, to start the function.
+        duration : float
+            Length in time, in seconds, to perform the function.
+        function : callable
+            Function handle that defines the output waveform. First argument is
+            the relative time from function start, in seconds.
+        *args
+            Arguments passed to `function`.
+        **kwargs
+            Keyword arguments pass to `function`. Standard kwargs common to other
+            output functions are: `units`, `samplerate`, and `truncation`. These
+            kwargs are optional, but will not be passed to `function` if present.
 
-        Returns:
-            float: Duration the function is to be evaluate for. Equivalent to 
+        Returns
+        -------
+        float
+            Duration the function is to be evaluated for. Equivalent to
             `truncation*duration`.
         """
         units = kwargs.pop("units", None)
@@ -1147,18 +1289,23 @@ class AnalogQuantity(Output):
 
         if truncation > 0:
             self._add_ramp(
-                t, duration, truncation*duration, f"custom ramp: {function.__name__}",
-                samplerate, units, custom_ramp_func,
+                t, duration, truncation * duration,
+                f"custom ramp: {function.__name__}", samplerate, units,
+                custom_ramp_func,
             )
-        return truncation*duration
+        return truncation * duration
 
     def constant(self, t, value, units=None):
-        """Sets the output to a constant value at time `t`.
+        """Set the output to a constant value at time `t`.
 
-        Args:
-            t (float): Time, in seconds, to set the constant output.
-            value (float): Value to set.
-            units: Units, defined by the unit conversion class, the value is in.
+        Parameters
+        ----------
+        t : float
+            Time, in seconds, to set the constant output.
+        value : float
+            Value to set.
+        units
+            Units, defined by the unit conversion class, the value is in.
         """
         # verify that value can be converted to float
         try:
@@ -1172,35 +1319,40 @@ class AnalogQuantity(Output):
 
 
 class AnalogOut(AnalogQuantity):
-    """Analog Output class for use with all devices that support timed analog outputs."""
+    """Analog output for all devices that support timed analog outputs."""
+
     description = "analog output"
-    
-    
+
+
 class _StaticQuantity:
     """Members shared by outputs that hold one value for the whole shot."""
 
     def get_change_times(self):
-        """Enforces no change times.
+        """Enforce no change times.
 
-        Returns:
-            list: An empty list, as expected by the parent pseudoclock.
+        Returns
+        -------
+        list
+            An empty list, as expected by the parent pseudoclock.
         """
         return []
 
-    def make_timeseries(self,change_times):
+    def make_timeseries(self, change_times):
         """Since output is static, does nothing."""
         pass
 
-    def expand_timeseries(self,*args,**kwargs):
-        """Defines the `raw_output` attribute.
-        """
+    def expand_timeseries(self, *args, **kwargs):
+        """Define the `raw_output` attribute."""
         self.raw_output = np.array([self.static_value], dtype=self.dtype)
 
     @property
     def static_value(self):
         """float: The value of the static output."""
         if self._static_value is None:
-            if not compiler.suppress_mild_warnings and not compiler.suppress_all_warnings:
+            if (
+                not compiler.suppress_mild_warnings
+                and not compiler.suppress_all_warnings
+            ):
                 sys.stderr.write(
                     f"WARNING: {self.name} has no value set. It will be set to "
                     f"{self.instruction_to_string(self.default_value)}.\n"
@@ -1214,20 +1366,24 @@ class StaticAnalogQuantity(_StaticQuantity, Output):
 
     It can also be used internally by other more complex output types.
     """
+
     description = "static analog quantity"
     default_value = 0.0
     """float: Value of output if no constant value is commanded."""
-    
-    @set_passed_properties(property_names = {})
+
+    @set_passed_properties(property_names={})
     def __init__(self, *args, **kwargs):
-        """Instatiantes the static analog quantity.
+        """Instantiate the static analog quantity.
 
         Defines an internal tracking variable of the static output value and
         calls :func:`Output.__init__`.
 
-        Args:
-            *args: Passed to :func:`Output.__init__`.
-            **kwargs: Passed to :func:`Output.__init__`.
+        Parameters
+        ----------
+        *args
+            Passed to :func:`Output.__init__`.
+        **kwargs
+            Passed to :func:`Output.__init__`.
         """
         Output.__init__(self, *args, **kwargs)
         self._static_value = None
@@ -1235,20 +1391,22 @@ class StaticAnalogQuantity(_StaticQuantity, Output):
     def constant(self, value, units=None):
         """Set the static output value of the output.
 
-        Args:
-            value (float): Value to set the output to.
-            units: Units, defined by the unit conversion class, the value is in.
+        Parameters
+        ----------
+        value : float
+            Value to set the output to.
+        units
+            Units, defined by the unit conversion class, the value is in.
 
-        Raises:
-            LabscriptError: If static output has already been set to another value
-                or the value lies outside the output limits.
+        Raises
+        ------
+        LabscriptError
+            If static output has already been set to another value or the value
+            lies outside the output limits.
         """
         if self._static_value is None:
-            # If we have units specified, convert the value
             if units is not None:
-                # Apply the unit calibration now
                 value = self.apply_calibration(value, units)
-            # if we have limits, check the value is valid
             if self.limits:
                 minval, maxval = self.limits
                 if not minval <= value <= maxval:
@@ -1267,7 +1425,8 @@ class StaticAnalogQuantity(_StaticQuantity, Output):
 
 
 class StaticAnalogOut(StaticAnalogQuantity):
-    """Static Analog Output class for use with all devices that have constant outputs."""
+    """Static analog output for all devices that have constant outputs."""
+
     description = "static analog output"
 
 
@@ -1276,49 +1435,62 @@ class DigitalQuantity(Output):
 
     It is also used internally by other, more complex, output types.
     """
+
     description = "digital quantity"
     allowed_states = {1: "high", 0: "low"}
     default_value = 0
     dtype = np.uint32
-    
+
     # Redefine __init__ so that you cannot define a limit or calibration for DO
     @set_passed_properties(property_names={"connection_table_properties": ["inverted"]})
     def __init__(self, name, parent_device, connection, inverted=False, **kwargs):
         """Instantiate a digital quantity.
 
-        Args:
-            name (str): python variable name to assign the quantity to.
-            parent_device (:obj:`IntermediateDevice`): Device this quantity is attached to.
-            connection (str): Connection on parent device we are connected to.
-            inverted (bool, optional): If `True`, output is logic inverted.
-            **kwargs: Passed to :func:`Output.__init__`.
+        Parameters
+        ----------
+        name : str
+            python variable name to assign the quantity to.
+        parent_device : :obj:`IntermediateDevice`
+            Device this quantity is attached to.
+        connection : str
+            Connection on parent device we are connected to.
+        inverted : bool, optional
+            If `True`, output is logic inverted.
+        **kwargs
+            Passed to :func:`Output.__init__`.
         """
-        Output.__init__(self,name,parent_device,connection, **kwargs)
+        super().__init__(name, parent_device, connection, **kwargs)
         self.inverted = bool(inverted)
 
     def go_high(self, t):
-        """Commands the output to go high.
+        """Command the output to go high.
 
-        Args:
-            t (float): Time, in seconds, when the output goes high.
+        Parameters
+        ----------
+        t : float
+            Time, in seconds, when the output goes high.
         """
         self.add_instruction(t, 1)
 
     def go_low(self, t):
-        """Commands the output to go low.
+        """Command the output to go low.
 
-        Args:
-            t (float): Time, in seconds, when the output goes low.
+        Parameters
+        ----------
+        t : float
+            Time, in seconds, when the output goes low.
         """
         self.add_instruction(t, 0)
 
     def enable(self, t):
-        """Commands the output to enable.
+        """Command the output to enable.
 
         If `inverted=True`, this will set the output low.
 
-        Args:
-            t (float): Time, in seconds, when the output enables.
+        Parameters
+        ----------
+        t : float
+            Time, in seconds, when the output enables.
         """
         if self.inverted:
             self.go_low(t)
@@ -1326,12 +1498,14 @@ class DigitalQuantity(Output):
             self.go_high(t)
 
     def disable(self, t):
-        """Commands the output to disable.
+        """Command the output to disable.
 
         If `inverted=True`, this will set the output high.
 
-        Args:
-            t (float): Time, in seconds, when the output disables.
+        Parameters
+        ----------
+        t : float
+            Time, in seconds, when the output disables.
         """
         if self.inverted:
             self.go_high(t)
@@ -1339,34 +1513,48 @@ class DigitalQuantity(Output):
             self.go_low(t)
 
     def repeat_pulse_sequence(self, t, duration, pulse_sequence, period, samplerate):
-        """This function only works if the DigitalQuantity is on a fast clock
-        
-        The pulse sequence specified will be repeated from time t until t+duration.
-        
-        Note 1: The samplerate should be significantly faster than the smallest time difference between 
-        two states in the pulse sequence, or else points in your pulse sequence may never be evaluated.
-        
-        Note 2: The time points your pulse sequence is evaluated at may be different than you expect,
-        if another output changes state between t and t+duration. As such, you should set the samplerate
-        high enough that even if this rounding of tie points occurs (to fit in the update required to change the other output)
-        your pulse sequence will not be significantly altered)
+        """Repeat a pulse sequence from time `t` until `t+duration`.
 
-        Args:
-            t (float): Time, in seconds, to start the pulse sequence.
-            duration (float): How long, in seconds, to repeat the sequence.
-            pulse_sequence (list): List of tuples, with each tuple of the form
-                `(time, state)`.
-            period (float): Defines how long the final tuple will be held for before
-                repeating the pulse sequence. In general, should be longer than the 
-                entire pulse sequence.
-            samplerate (float): How often to update the output, in Hz.
+        This only works if the DigitalQuantity is on a fast clock.
+
+        Parameters
+        ----------
+        t : float
+            Time, in seconds, to start the pulse sequence.
+        duration : float
+            How long, in seconds, to repeat the sequence.
+        pulse_sequence : list
+            List of tuples, with each tuple of the form `(time, state)`.
+        period : float
+            Defines how long the final tuple will be held for before repeating
+            the pulse sequence. In general, should be longer than the entire pulse
+            sequence.
+        samplerate : float
+            How often to update the output, in Hz.
+
+        Returns
+        -------
+        float
+            The `duration`.
+
+        Notes
+        -----
+        The samplerate should be significantly faster than the smallest time
+        difference between two states in the pulse sequence, or else points in
+        your pulse sequence may never be evaluated.
+
+        The time points your pulse sequence is evaluated at may be different than
+        you expect, if another output changes state between t and t+duration. As
+        such, you should set the samplerate high enough that even if this rounding
+        of time points occurs (to fit in the update required to change the other
+        output) your pulse sequence will not be significantly altered.
         """
         self.add_instruction(
             t,
             {
                 "function": functions.pulse_sequence(pulse_sequence, period),
                 "description": "pulse sequence",
-                "initial time":t,
+                "initial time": t,
                 "end time": t + duration,
                 "span": duration,
                 "clock rate": samplerate,
@@ -1379,6 +1567,7 @@ class DigitalQuantity(Output):
 
 class DigitalOut(DigitalQuantity):
     """Digital output class for use with all devices."""
+
     description = "digital output"
 
 
@@ -1387,20 +1576,24 @@ class StaticDigitalQuantity(_StaticQuantity, DigitalQuantity):
 
     It can also be used internally by other, more complex, output types.
     """
+
     description = "static digital quantity"
     default_value = 0
     """float: Value of output if no constant value is commanded."""
 
-    @set_passed_properties(property_names = {})
+    @set_passed_properties(property_names={})
     def __init__(self, *args, **kwargs):
-        """Instatiantes the static digital quantity.
+        """Instantiate the static digital quantity.
 
         Defines an internal tracking variable of the static output value and
         calls :func:`Output.__init__`.
 
-        Args:
-            *args: Passed to :func:`Output.__init__`.
-            **kwargs: Passed to :func:`Output.__init__`.
+        Parameters
+        ----------
+        *args
+            Passed to :func:`Output.__init__`.
+        **kwargs
+            Passed to :func:`Output.__init__`.
         """
         DigitalQuantity.__init__(self, *args, **kwargs)
         self._static_value = None
@@ -1408,16 +1601,20 @@ class StaticDigitalQuantity(_StaticQuantity, DigitalQuantity):
     def go_high(self):
         """Command a static high output.
 
-        Raises:
-            LabscriptError: If output has already been set low.
+        Raises
+        ------
+        LabscriptError
+            If output has already been set low.
         """
         self._set_static(1)
 
     def go_low(self):
         """Command a static low output.
 
-        Raises:
-            LabscriptError: If output has already been set high.
+        Raises
+        ------
+        LabscriptError
+            If output has already been set high.
         """
         self._set_static(0)
 
@@ -1433,7 +1630,8 @@ class StaticDigitalQuantity(_StaticQuantity, DigitalQuantity):
 
 
 class StaticDigitalOut(StaticDigitalQuantity):
-    """Static Digital Output class for use with all devices that have constant outputs."""
+    """Static digital output for all devices that have constant outputs."""
+
     description = "static digital output"
 
 
@@ -1442,16 +1640,16 @@ class Shutter(DigitalOut):
     delay of a shutter automatically.
 
     When using the methods :meth:`open` and :meth:`close`, the shutter open
-    and close times are precise without haveing to track the delays. Note:
+    and close times are precise without having to track the delays. Note:
     delays can be set using runmanager globals and periodically updated
     via a calibration.
 
-    .. Warning:: 
-
+    .. Warning::
         If the shutter is asked to do something at `t=0`, it cannot start
         moving earlier than that. This means the initial shutter states
         will have imprecise timing.
     """
+
     description = "shutter"
 
     @set_passed_properties(
@@ -1460,28 +1658,32 @@ class Shutter(DigitalOut):
     def __init__(
         self, name, parent_device, connection, delay=(0, 0), open_state=1, **kwargs
     ):
-        """Instantiates a Shutter.
+        """Instantiate a Shutter.
 
-        Args:
-            name (str): python variable to assign the object to.
-            parent_device (:obj:`IntermediateDevice`): Parent device the
-                digital output is connected to.
-            connection (str): Physical output port of the device the digital
-                output is connected to.
-            delay (tuple, optional): Tuple of the (open, close) delays, specified
-                in seconds: how long the shutter takes to open or close once
-                commanded. `open(t)` and `close(t)` command it that much
-                earlier, so that it is open or closed at `t`.
-            open_state (int, optional): Allowed values are `0` or `1`. Defines which
-                state of the digital output opens the shutter.
+        Parameters
+        ----------
+        name : str
+            python variable to assign the object to.
+        parent_device : :obj:`IntermediateDevice`
+            Parent device the digital output is connected to.
+        connection : str
+            Physical output port of the device the digital output is connected to.
+        delay : tuple, optional
+            Tuple of the (open, close) delays, specified in seconds: how long the
+            shutter takes to open or close once commanded. `open(t)` and
+            `close(t)` command it that much earlier, so that it is open or closed
+            at `t`.
+        open_state : int, optional
+            Allowed values are `0` or `1`. Defines which state of the digital
+            output opens the shutter.
 
-        Raises:
-            LabscriptError: If the `open_state` is not `0` or `1`.
+        Raises
+        ------
+        LabscriptError
+            If the `open_state` is not `0` or `1`.
         """
         inverted = not bool(open_state)
-        DigitalOut.__init__(
-            self, name, parent_device, connection, inverted=inverted, **kwargs
-        )
+        super().__init__(name, parent_device, connection, inverted=inverted, **kwargs)
         self.open_delay, self.close_delay = delay
         self.open_state = open_state
         if self.open_state == 1:
@@ -1493,6 +1695,7 @@ class Shutter(DigitalOut):
                 f"Shutter {self.name} wasn't instantiated with open_state = 0 or 1."
             )
         self.actual_times = {}
+
     def open(self, t):
         """Command the shutter to open at time `t`.
 
@@ -1502,15 +1705,15 @@ class Shutter(DigitalOut):
         command is made at t=0 (or other times less than the open delay). No warning
         will be issued for this loss of precision during compilation.
 
-        Args:
-            t (float): Time, in seconds, when shutter should be open.
+        Parameters
+        ----------
+        t : float
+            Time, in seconds, when shutter should be open.
         """
-        # If a shutter is asked to do something at t=0, it cannot start moving
-        # earlier than that.  So initial shutter states will have imprecise
-        # timing. Not throwing a warning here because if I did, every run
-        # would throw a warning for every shutter. The documentation will
-        # have to make a point of this.
-        t_calc = t-self.open_delay if t >= self.open_delay else 0
+        # A shutter asked to do something at t=0 cannot start moving earlier, so
+        # initial shutter states have imprecise timing. This does not warn, as every
+        # run would warn for every shutter; the documentation says so instead.
+        t_calc = t - self.open_delay if t >= self.open_delay else 0
         self.actual_times[t] = {"time": t_calc, "instruction": 1}
         self.enable(t_calc)
 
@@ -1523,10 +1726,12 @@ class Shutter(DigitalOut):
         command is made at t=0 (or other times less than the close delay). No warning
         will be issued for this loss of precision during compilation.
 
-        Args:
-            t (float): Time, in seconds, when shutter should be closed.
+        Parameters
+        ----------
+        t : float
+            Time, in seconds, when shutter should be closed.
         """
-        t_calc = t-self.close_delay if t >= self.close_delay else 0
+        t_calc = t - self.close_delay if t >= self.close_delay else 0
         self.actual_times[t] = {"time": t_calc, "instruction": 0}
         self.disable(t_calc)
 
@@ -1545,7 +1750,7 @@ class Shutter(DigitalOut):
         dataset[len(dataset) - 1] = metadata
 
     def get_change_times(self, *args, **kwargs):
-        retval = DigitalOut.get_change_times(self, *args, **kwargs)
+        retval = super().get_change_times(*args, **kwargs)
 
         if len(self.actual_times) > 1:
             sorted_times = list(self.actual_times.keys())
@@ -1559,14 +1764,20 @@ class Shutter(DigitalOut):
                 next_state = "open" if next_instruction == 1 else "close"
                 # only look at instructions that contain a state change
                 if instruction != next_instruction:
-                    if self.actual_times[next_time]["time"] < self.actual_times[time]["time"]:
+                    if (
+                        self.actual_times[next_time]["time"]
+                        < self.actual_times[time]["time"]
+                    ):
                         sys.stderr.write(
                             f"WARNING: The shutter '{self.name}' is requested to "
                             f"{next_state} too early (taking delay into account) at "
                             f"t={next_time:.10f}s when it is still not {state} from "
                             f"an earlier instruction at t={time:.10f}s\n"
                         )
-                elif not compiler.suppress_mild_warnings and not compiler.suppress_all_warnings:
+                elif (
+                    not compiler.suppress_mild_warnings
+                    and not compiler.suppress_all_warnings
+                ):
                     sys.stderr.write(
                         f"WARNING: The shutter '{self.name}' is requested to "
                         f"{next_state} at t={next_time:.10f}s but was never {state} "
@@ -1576,8 +1787,8 @@ class Shutter(DigitalOut):
 
 
 class Trigger(DigitalOut):
-    """Customized version of :obj:`DigitalOut` that tracks edge type.
-    """
+    """Customized version of :obj:`DigitalOut` that tracks edge type."""
+
     description = "trigger device"
     allowed_children = [TriggerableDevice]
 
@@ -1585,16 +1796,22 @@ class Trigger(DigitalOut):
     def __init__(
         self, name, parent_device, connection, trigger_edge_type="rising", **kwargs
     ):
-        """Instantiates a DigitalOut object that tracks the trigger edge type.
+        """Instantiate a DigitalOut object that tracks the trigger edge type.
 
-        Args:
-            name (str): python variable name to assign the quantity to.
-            parent_device (:obj:`IntermediateDevice`): Device this quantity is attached to.
-            trigger_edge_type (str, optional): Allowed values are `'rising'` and `'falling'`.
-            **kwargs: Passed to :func:`Output.__init__`.
-
+        Parameters
+        ----------
+        name : str
+            python variable name to assign the quantity to.
+        parent_device : :obj:`IntermediateDevice`
+            Device this quantity is attached to.
+        connection : str
+            Connection on parent device we are connected to.
+        trigger_edge_type : str, optional
+            Allowed values are `'rising'` and `'falling'`.
+        **kwargs
+            Passed to :func:`Output.__init__`.
         """
-        DigitalOut.__init__(self, name, parent_device, connection, **kwargs)
+        super().__init__(name, parent_device, connection, **kwargs)
         self.trigger_edge_type = trigger_edge_type
         if self.trigger_edge_type == "rising":
             self.enable = self.go_high
@@ -1615,9 +1832,12 @@ class Trigger(DigitalOut):
     def trigger(self, t, duration):
         """Command a trigger pulse.
 
-        Args:
-            t (float): Time, in seconds, for the trigger edge to occur.
-            duration (float): Duration of the trigger, in seconds.
+        Parameters
+        ----------
+        t : float
+            Time, in seconds, for the trigger edge to occur.
+        duration : float
+            Duration of the trigger, in seconds.
         """
         assert duration > 0, "Negative or zero trigger duration given"
         if t != self.t0 and self.t0 not in self.instructions:
@@ -1655,9 +1875,9 @@ class Trigger(DigitalOut):
                 f"The 'connection' string of device {device.name} "
                 f"to {self.name} must be 'trigger', not '{device.connection}'"
             )
-        DigitalOut.add_device(self, device)
+        super().add_device(device)
 
-        
+
 class _DDSBase(Device):
     """Frequency, amplitude and phase channels of a DDS, and its optional gate.
 
@@ -1683,47 +1903,53 @@ class _DDSBase(Device):
         call_parents_add_device=True,
         **kwargs
     ):
-        """Instantiates the channels, and the gate if one is given.
+        """Instantiate the channels, and the gate if one is given.
 
-        Args:
-            name (str): python variable for the object created.
-            parent_device (:obj:`IntermediateDevice`): Device this output is
-                connected to.
-            connection (str): Output of parent device this DDS is connected to.
-            digital_gate (dict, optional): Configures a digital output to use as an enable/disable
-                gate for the output. Should contain keys `'device'` and `'connection'`
-                with arguments for the `parent_device` and `connection` for instantiating
-                the :obj:`DigitalOut`. All other (optional) keys are passed as kwargs.
-            freq_limits (tuple, optional): `(lower, upper)` limits for the 
-                frequency of the output
-            freq_conv_class (:obj:`labscript_utils:labscript_utils.unitconversions`, optional): 
-                Unit conversion class for the frequency of the output.
-            freq_conv_params (dict, optional): Keyword arguments passed to the 
-                unit conversion class for the frequency of the output.
-            amp_limits (tuple, optional): `(lower, upper)` limits for the 
-                amplitude of the output
-            amp_conv_class (:obj:`labscript_utils:labscript_utils.unitconversions`, optional): 
-                Unit conversion class for the amplitude of the output.
-            amp_conv_params (dict, optional): Keyword arguments passed to the 
-                unit conversion class for the amplitude of the output.
-            phase_limits (tuple, optional): `(lower, upper)` limits for the 
-                phase of the output
-            phase_conv_class (:obj:`labscript_utils:labscript_utils.unitconversions`, optional): 
-                Unit conversion class for the phase of the output.
-            phase_conv_params (dict, optional): Keyword arguments passed to the 
-                unit conversion class for the phase of the output.
-            call_parents_add_device (bool, optional): Have the parent device run
-                its `add_device` method.
-            **kwargs: Keyword arguments passed to :func:`Device.__init__`.
-        """        
-        # Here we set call_parents_add_device=False so that we
-        # can do additional initialisation before manually calling
-        # self.parent_device.add_device(self). This allows the parent's
-        # add_device method to perform checks based on the code below,
-        # whilst still providing us with the checks and attributes that
-        # Device.__init__ gives us in the meantime.
-        Device.__init__(
-            self, name, parent_device, connection, call_parents_add_device=False, **kwargs
+        Parameters
+        ----------
+        name : str
+            python variable for the object created.
+        parent_device : :obj:`IntermediateDevice`
+            Device this output is connected to.
+        connection : str
+            Output of parent device this DDS is connected to.
+        digital_gate : dict, optional
+            Configures a digital output to use as an enable/disable gate for the
+            output. Should contain keys `'device'` and `'connection'` with
+            arguments for the `parent_device` and `connection` for instantiating
+            the :obj:`DigitalOut`. All other (optional) keys are passed as kwargs.
+        freq_limits : tuple, optional
+            `(lower, upper)` limits for the frequency of the output
+        freq_conv_class : :obj:`labscript_utils:labscript_utils.unitconversions`, optional
+            Unit conversion class for the frequency of the output.
+        freq_conv_params : dict, optional
+            Keyword arguments passed to the unit conversion class for the frequency
+            of the output.
+        amp_limits : tuple, optional
+            `(lower, upper)` limits for the amplitude of the output
+        amp_conv_class : :obj:`labscript_utils:labscript_utils.unitconversions`, optional
+            Unit conversion class for the amplitude of the output.
+        amp_conv_params : dict, optional
+            Keyword arguments passed to the unit conversion class for the amplitude
+            of the output.
+        phase_limits : tuple, optional
+            `(lower, upper)` limits for the phase of the output
+        phase_conv_class : :obj:`labscript_utils:labscript_utils.unitconversions`, optional
+            Unit conversion class for the phase of the output.
+        phase_conv_params : dict, optional
+            Keyword arguments passed to the unit conversion class for the phase of
+            the output.
+        call_parents_add_device : bool, optional
+            Have the parent device run its `add_device` method.
+        **kwargs
+            Keyword arguments passed to :func:`Device.__init__`.
+        """
+        # call_parents_add_device=False lets us do more initialisation before
+        # calling self.parent_device.add_device(self) manually, so that the parent's
+        # add_device can check against the code below, while Device.__init__ still
+        # gives us its checks and attributes in the meantime.
+        super().__init__(
+            name, parent_device, connection, call_parents_add_device=False, **kwargs
         )
 
         # Ask the parent device if it has default unit conversion classes it would like
@@ -1779,28 +2005,28 @@ class _DDSBase(Device):
                 f"of {self.name}."
             )
 
-        # If the user has not specified a gate, and the parent device
-        # supports gating of DDS output, it should add a gate to this
-        # instance in its add_device method, which is called below. If
-        # they *have* specified a gate device, but the parent device
-        # has its own gating (such as the PulseBlaster), it should
-        # check this and throw an error in its add_device method. See
-        # labscript_devices.PulseBlaster.PulseBlaster.add_device for an
-        # example of this.
-        # In some subclasses we need to hold off on calling the parent
-        # device's add_device function until further code has run,
-        # e.g., see PulseBlasterDDS in PulseBlaster.py
+        # If the user gave no gate and the parent device supports gating of DDS
+        # output, the parent adds a gate in its add_device, called below. If they
+        # did give one but the parent has its own gating (such as the PulseBlaster),
+        # the parent should raise in add_device; see
+        # labscript_devices.PulseBlaster.PulseBlaster.add_device for an example.
+        # Some subclasses must hold off on calling the parent's add_device until
+        # further code has run, e.g. PulseBlasterDDS in PulseBlaster.py.
         if call_parents_add_device:
             self.parent_device.add_device(self)
 
     def enable(self, t):
         """Enable the Output.
 
-        Args:
-            t (float): Time, in seconds, to enable the output at.
+        Parameters
+        ----------
+        t : float
+            Time, in seconds, to enable the output at.
 
-        Raises:
-            LabscriptError: If the DDS is not instantiated with a digital gate.
+        Raises
+        ------
+        LabscriptError
+            If the DDS is not instantiated with a digital gate.
         """
         if self.gate is None:
             raise LabscriptError(
@@ -1812,11 +2038,15 @@ class _DDSBase(Device):
     def disable(self, t):
         """Disable the Output.
 
-        Args:
-            t (float): Time, in seconds, to disable the output at.
+        Parameters
+        ----------
+        t : float
+            Time, in seconds, to disable the output at.
 
-        Raises:
-            LabscriptError: If the DDS is not instantiated with a digital gate.
+        Raises
+        ------
+        LabscriptError
+            If the DDS is not instantiated with a digital gate.
         """
         if self.gate is None:
             raise LabscriptError(
@@ -1827,16 +2057,17 @@ class _DDSBase(Device):
 
 
 class DDSQuantity(_DDSBase):
-    """Used to define a DDS output. 
+    """Used to define a DDS output.
 
     It is a container class, with properties that allow access to a frequency,
-    amplitude, and phase of the output as :obj:`AnalogQuantity`. 
-    It can also have a gate, which provides enable/disable control of the output 
+    amplitude, and phase of the output as :obj:`AnalogQuantity`.
+    It can also have a gate, which provides enable/disable control of the output
     as :obj:`DigitalOut`.
 
     This class instantiates channels for frequency/amplitude/phase (and optionally the
-    gate) itself. 
+    gate) itself.
     """
+
     description = 'DDS'
     allowed_children = [AnalogQuantity, DigitalOut, DigitalQuantity]
     channel_class = AnalogQuantity
@@ -1844,30 +2075,42 @@ class DDSQuantity(_DDSBase):
     def setamp(self, t, value, units=None):
         """Set the amplitude of the output.
 
-        Args:
-            t (float): Time, in seconds, when the amplitude is set.
-            value (float): Amplitude to set to.
-            units: Units that the value is defined in.
+        Parameters
+        ----------
+        t : float
+            Time, in seconds, when the amplitude is set.
+        value : float
+            Amplitude to set to.
+        units
+            Units that the value is defined in.
         """
         self.amplitude.constant(t, value, units)
 
     def setfreq(self, t, value, units=None):
         """Set the frequency of the output.
 
-        Args:
-            t (float): Time, in seconds, when the frequency is set.
-            value (float): Frequency to set to.
-            units: Units that the value is defined in.
+        Parameters
+        ----------
+        t : float
+            Time, in seconds, when the frequency is set.
+        value : float
+            Frequency to set to.
+        units
+            Units that the value is defined in.
         """
         self.frequency.constant(t, value, units)
 
     def setphase(self, t, value, units=None):
         """Set the phase of the output.
 
-        Args:
-            t (float): Time, in seconds, when the phase is set.
-            value (float): Phase to set to.
-            units: Units that the value is defined in.
+        Parameters
+        ----------
+        t : float
+            Time, in seconds, when the phase is set.
+        value : float
+            Phase to set to.
+        units
+            Units that the value is defined in.
         """
         self.phase.constant(t, value, units)
 
@@ -1885,25 +2128,37 @@ class DDSQuantity(_DDSBase):
     ):
         """Pulse the output.
 
-        Args:
-            t (float): Time, in seconds, to start the pulse at.
-            duration (float): Length of the pulse, in seconds.
-            amplitude (float): Amplitude to set the output to during the pulse.
-            frequency (float): Frequency to set the output to during the pulse.
-            phase (float, optional): Phase to set the output to during the pulse.
-            amplitude_units: Units of `amplitude`.
-            frequency_units: Units of `frequency`.
-            phase_units: Units of `phase`.
-            print_summary (bool, optional): Print a summary of the pulse during
-                compilation time.
+        Parameters
+        ----------
+        t : float
+            Time, in seconds, to start the pulse at.
+        duration : float
+            Length of the pulse, in seconds.
+        amplitude : float
+            Amplitude to set the output to during the pulse.
+        frequency : float
+            Frequency to set the output to during the pulse.
+        phase : float, optional
+            Phase to set the output to during the pulse.
+        amplitude_units
+            Units of `amplitude`.
+        frequency_units
+            Units of `frequency`.
+        phase_units
+            Units of `phase`.
+        print_summary : bool, optional
+            Print a summary of the pulse during compilation time.
 
-        Returns:
-            float: Duration of the pulse, in seconds.
+        Returns
+        -------
+        float
+            Duration of the pulse, in seconds.
         """
         if print_summary:
             functions.print_time(
                 t,
-                f"{self.name} pulse at {frequency/MHz:.4f} MHz for {duration/ms:.3f} ms",
+                f"{self.name} pulse at {frequency/MHz:.4f} MHz "
+                f"for {duration/ms:.3f} ms",
             )
         self.setamp(t, amplitude, amplitude_units)
         if frequency is not None:
@@ -1927,33 +2182,43 @@ class StaticDDS(_DDSBase):
     Its frequency, amplitude and phase hold one value for the whole shot,
     programmed before it starts, so its setters take no time.
     """
+
     description = "Static RF"
-    allowed_children = [StaticAnalogQuantity,DigitalOut,StaticDigitalOut]
+    allowed_children = [StaticAnalogQuantity, DigitalOut, StaticDigitalOut]
     channel_class = StaticAnalogQuantity
 
     def setamp(self, value, units=None):
         """Set the static amplitude of the output.
 
-        Args:
-            value (float): Amplitude to set to.
-            units: Units that the value is defined in.
+        Parameters
+        ----------
+        value : float
+            Amplitude to set to.
+        units
+            Units that the value is defined in.
         """
-        self.amplitude.constant(value,units)
+        self.amplitude.constant(value, units)
 
     def setfreq(self, value, units=None):
         """Set the static frequency of the output.
 
-        Args:
-            value (float): Frequency to set to.
-            units: Units that the value is defined in.
+        Parameters
+        ----------
+        value : float
+            Frequency to set to.
+        units
+            Units that the value is defined in.
         """
-        self.frequency.constant(value,units)
+        self.frequency.constant(value, units)
 
     def setphase(self, value, units=None):
         """Set the static phase of the output.
 
-        Args:
-            value (float): Phase to set to.
-            units: Units that the value is defined in.
+        Parameters
+        ----------
+        value : float
+            Phase to set to.
+        units
+            Units that the value is defined in.
         """
-        self.phase.constant(value,units) 
+        self.phase.constant(value, units)
