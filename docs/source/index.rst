@@ -11,7 +11,9 @@ labscript |version|
 
    introduction
    connection_table
+   experiment_logic
    timing
+   units
    improvements
    api/index
 

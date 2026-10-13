@@ -17,7 +17,7 @@ To give you an idea of what a sample experiment looks like, the simplest experim
     my_digital_out.go_high(t=1) # go high at 1s
     stop(2)                     # stop at 2s
     
-The script consists of two parts, the connection table and the experiment logic which will be discussed in the following sections.
+The script consists of two parts, the :doc:`connection table <connection_table>` and the :doc:`experiment logic <experiment_logic>`.
 
 
     

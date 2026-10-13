@@ -135,7 +135,8 @@ def exp_ramp_t(duration,initial,final,time_constant):
     return lambda t: (initial-zero)*exp(-(t)/time_constant) + zero
 
 def piecewise_accel(duration,initial,final):
-    """Defines a piecewise acceleration.
+    """Defines a ramp from `initial` to `final` that starts and ends at rest, its
+    acceleration a triangle wave: cubic in each third of `duration`.
 
     Args:
         duration (float): Length of time for the acceleration to complete.

@@ -15,3 +15,14 @@ If a :py:class:`PseudoclockDevice <labscript.core.PseudoclockDevice>` also has o
 
 .. note::
 	Most user's will not need to use :py:class:`PseudoclockDevice <labscript.core.PseudoclockDevice>`, :py:class:`Pseudoclock <labscript.core.Pseudoclock>`, and :py:class:`IntermediateDevice <labscript.core.IntermediateDevice>` directly. These are generic classes that are subclassed by device implementations in :doc:`labscript-devices <labscript-devices:index>`. It is these device implementations that you are most likely to use.
+
+Naming devices
+--------------
+
+Each device's ``name`` becomes a Python variable that the script can use directly, as ``my_digital_out`` above. Names must be unique, valid Python identifiers, not keywords, and not already used by Python or labscript.
+
+Clock lines that cannot ramp
+----------------------------
+
+A :py:class:`ClockLine <labscript.core.ClockLine>` made with ``ramping_allowed=False`` ticks only when an output on it changes, so its outputs can be set to constant values but cannot ramp. Devices use such a line for outputs that the pseudoclock clocks less often, for example a PulseBlaster's direct outputs.
+

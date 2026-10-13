@@ -611,7 +611,8 @@ class AnalogQuantity(Output):
     """Base class for :obj:`AnalogOut`.
 
     It is also used internally by :obj:`DDS`. You should never instantiate this
-    class directly.
+    class directly. Its ramps need a clock line with `ramping_allowed`; on one
+    without, only constant values can be set.
     """
     description = "analog quantity"
     default_value = 0
@@ -1468,7 +1469,9 @@ class Shutter(DigitalOut):
             connection (str): Physical output port of the device the digital
                 output is connected to.
             delay (tuple, optional): Tuple of the (open, close) delays, specified
-                in seconds.
+                in seconds: how long the shutter takes to open or close once
+                commanded. `open(t)` and `close(t)` command it that much
+                earlier, so that it is open or closed at `t`.
             open_state (int, optional): Allowed values are `0` or `1`. Defines which
                 state of the digital output opens the shutter.
 
@@ -1919,7 +1922,11 @@ class DDS(DDSQuantity):
 
 
 class StaticDDS(_DDSBase):
-    """Static DDS class for use with all devices that have static DDS-like outputs."""
+    """Static DDS class for use with all devices that have static DDS-like outputs.
+
+    Its frequency, amplitude and phase hold one value for the whole shot,
+    programmed before it starts, so its setters take no time.
+    """
     description = "Static RF"
     allowed_children = [StaticAnalogQuantity,DigitalOut,StaticDigitalOut]
     channel_class = StaticAnalogQuantity
