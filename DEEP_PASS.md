@@ -730,6 +730,47 @@ methods in entry 7.
   need its own `import`.
 - **Outcome:** Kept (Ian).
 
+## Step 5: documents
+
+Done, b65dbcb; no candidate round, under the lean rules.
+
+- History narration replaced by what holds now: `compiler.py` (the warning
+  settings on the compiler), `labscript.py` (the star import's purpose),
+  `tests/test_compile_shot.py`'s module docstring, and the device guide's dtype
+  comment (`docs/labscript-dev/intermediatedevice_example.py`).
+- `functions.square_wave`: its phase tolerance was justified by "labscript
+  rounds all times to multiples of 0.1 ns", no longer true. The tolerance stays
+  (well below any tick, well above float error), under a truthful comment.
+- Spent TODOs removed from `core.py`: whether intermediate devices need a clock
+  limit (settled in step 3), and a robust clock-line lookup (step 3 added the
+  clear error).
+- `:inherited-members:` added to the autosummary class template. The docs build
+  (Sphinx 8.2.3): `DDSQuantity` lists `enable` and `disable`, and
+  `StaticAnalogQuantity` lists `get_change_times` and `static_value`;
+  `timing.html` builds.
+- The bad-global error names the shot file again (192ed67).
+
+For Ian, which step 5 cannot settle:
+
+- `sine4_reverse_ramp` (`functions.py:86`, `outputs.py`, `AnalogQuantity`): it
+  runs from `final` at `t` to `initial` at `t + duration`, while its docstrings
+  call it "decreasing" and say `initial` is the value at `t`. Either the
+  behaviour or the docs is wrong.
+- `exp_ramp` and `exp_ramp_t` still accept the old keywords `trunc` and
+  `trunc_type`: a compatibility leftover, step 4's business.
+- Open TODOs, wishes rather than spent: checking a clock line's connection
+  against its pseudoclock (`core.py`, `ClockLine.__init__` and
+  `Pseudoclock.add_device`, the latter with two commented-out lines);
+  triggering one pseudoclock of a device rather than the device
+  (`labscript.py`, `start`); intersphinx links for desktop-app and spinapi
+  (`docs/source/conf.py`).
+- The legacy documents `docs/Using the labscript API.docx` and
+  `docs/labscript-dev/main.tex` (with its built `main.pdf`): not reviewed, since
+  the first is binary; keep, update or drop.
+- The docs build gives 27 warnings, mostly autosummary failing to import numpy
+  names that `labscript.core` star-imports, and one on `max_or_zero`'s
+  docstring.
+
 ## Seen for later steps
 
 Each was re-checked on `CodeHealth` at 3510de2. All are upstream's code.
