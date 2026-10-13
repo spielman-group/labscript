@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  connection_diagram.svg: the example connection table in the docs.
+
+  Copyright 2026, JQI. Author: Ian Spielman.
+  This file is part of labscript, in the labscript suite
+  (see http://labscriptsuite.org), and is licensed under the Simplified BSD
+  License. See the license.txt file in the root of the project for the full
+  license.
+
+  This file is the source; connection_diagram.png is rendered from it for the
+  PDF build.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="1010" viewBox="0 0 1240 1010">
+  <style>
+    text { font-family: Helvetica, Arial, sans-serif; text-anchor: middle; }
+    .box { fill: white; stroke: black; stroke-width: 1.6; }
+    .name { font-size: 19px; }
+    .type { font-size: 15px; fill: black; }
+    .type tspan { fill: #c0601a; }
+    .device { fill: #6a2c91; }
+    .pseudoclock { fill: #1f5fa8; }
+    .clockline { fill: #167a6e; }
+    .intermediate { fill: #b3121b; }
+    .output { fill: #4c8c2b; }
+    .link { stroke: #5b9bd5; stroke-width: 2.2; fill: none; }
+    .label { font-size: 14px; fill: #5b9bd5; }
+    .legend { font-size: 15px; text-anchor: start; }
+  </style>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="9"
+            markerHeight="9" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#5b9bd5"/>
+    </marker>
+  </defs>
+  <rect width="1240" height="1010" fill="white"/>
+
+  <!-- Links: each arrow runs from a child up to its parent. -->
+  <g id="links">
+    <line class="link" x1="330" y1="190" x2="600" y2="112" marker-end="url(#arrow)"/>
+    <text class="label" x="440" y="140">pseudoclock 0</text>
+    <line class="link" x1="910" y1="190" x2="640" y2="112" marker-end="url(#arrow)"/>
+    <text class="label" x="800" y="140">pseudoclock 1</text>
+
+    <line class="link" x1="330" y1="350" x2="330" y2="272" marker-end="url(#arrow)"/>
+    <text class="label" x="340" y="316" style="text-anchor: start">GPIO 9</text>
+    <line class="link" x1="910" y1="350" x2="910" y2="272" marker-end="url(#arrow)"/>
+    <text class="label" x="920" y="316" style="text-anchor: start">GPIO 11</text>
+
+    <line class="link" x1="330" y1="510" x2="330" y2="432" marker-end="url(#arrow)"/>
+    <text class="label" x="340" y="476" style="text-anchor: start">internal</text>
+    <line class="link" x1="910" y1="510" x2="910" y2="432" marker-end="url(#arrow)"/>
+    <text class="label" x="920" y="476" style="text-anchor: start">internal</text>
+
+    <!-- Channels hang off a spine below their device. -->
+    <line class="link" x1="200" y1="850" x2="200" y2="592" marker-end="url(#arrow)"/>
+    <line class="link" x1="200" y1="670" x2="320" y2="670"/>
+    <text class="label" x="208" y="662" style="text-anchor: start">port0/line1</text>
+    <line class="link" x1="200" y1="760" x2="320" y2="760"/>
+    <text class="label" x="208" y="752" style="text-anchor: start">ao0</text>
+    <line class="link" x1="200" y1="850" x2="320" y2="850"/>
+    <text class="label" x="208" y="842" style="text-anchor: start">ai3</text>
+
+    <line class="link" x1="780" y1="850" x2="780" y2="592" marker-end="url(#arrow)"/>
+    <line class="link" x1="780" y1="670" x2="900" y2="670"/>
+    <text class="label" x="788" y="662" style="text-anchor: start">channel 0</text>
+    <line class="link" x1="780" y1="760" x2="900" y2="760"/>
+    <text class="label" x="788" y="752" style="text-anchor: start">channel 1</text>
+    <line class="link" x1="780" y1="850" x2="900" y2="850"/>
+    <text class="label" x="788" y="842" style="text-anchor: start">channel 2</text>
+  </g>
+
+  <!-- The pseudoclock device -->
+  <rect class="box" x="460" y="30" width="320" height="80" rx="14"/>
+  <text class="name device" x="620" y="62">prawnblaster_0</text>
+  <text class="type" x="620" y="92">Type: <tspan>PrawnBlaster</tspan></text>
+
+  <!-- Its pseudoclocks -->
+  <rect class="box" x="160" y="190" width="340" height="80" rx="14"/>
+  <text class="name pseudoclock" x="330" y="222">prawnblaster_0_pseudoclock_0</text>
+  <text class="type" x="330" y="252">Type: <tspan>_PrawnBlasterPseudoclock</tspan></text>
+  <rect class="box" x="740" y="190" width="340" height="80" rx="14"/>
+  <text class="name pseudoclock" x="910" y="222">prawnblaster_0_pseudoclock_1</text>
+  <text class="type" x="910" y="252">Type: <tspan>_PrawnBlasterPseudoclock</tspan></text>
+
+  <!-- Their clock lines -->
+  <rect class="box" x="160" y="350" width="340" height="80" rx="14"/>
+  <text class="name clockline" x="330" y="382">prawnblaster_0_clock_line_0</text>
+  <text class="type" x="330" y="412">Type: <tspan>ClockLine</tspan></text>
+  <rect class="box" x="740" y="350" width="340" height="80" rx="14"/>
+  <text class="name clockline" x="910" y="382">prawnblaster_0_clock_line_1</text>
+  <text class="type" x="910" y="412">Type: <tspan>ClockLine</tspan></text>
+
+  <!-- The intermediate devices they clock -->
+  <rect class="box" x="180" y="510" width="300" height="80" rx="14"/>
+  <text class="name intermediate" x="330" y="542">ni_card_0</text>
+  <text class="type" x="330" y="572">Type: <tspan>NI_PCIe_6363</tspan></text>
+  <rect class="box" x="760" y="510" width="300" height="80" rx="14"/>
+  <text class="name intermediate" x="910" y="542">novatech_DDS9m_0</text>
+  <text class="type" x="910" y="572">Type: <tspan>NovaTechDDS9M</tspan></text>
+
+  <!-- Their channels -->
+  <rect class="box" x="320" y="635" width="260" height="70" rx="12"/>
+  <text class="name output" x="450" y="664">switch_1</text>
+  <text class="type" x="450" y="690">Type: <tspan>DigitalOut</tspan></text>
+  <rect class="box" x="320" y="725" width="260" height="70" rx="12"/>
+  <text class="name output" x="450" y="754">MOT_coil</text>
+  <text class="type" x="450" y="780">Type: <tspan>AnalogOut</tspan></text>
+  <rect class="box" x="320" y="815" width="260" height="70" rx="12"/>
+  <text class="name output" x="450" y="844">MOT_fluorescence</text>
+  <text class="type" x="450" y="870">Type: <tspan>AnalogIn</tspan></text>
+
+  <rect class="box" x="900" y="635" width="260" height="70" rx="12"/>
+  <text class="name output" x="1030" y="664">source_MOT_AOM</text>
+  <text class="type" x="1030" y="690">Type: <tspan>DDS</tspan></text>
+  <rect class="box" x="900" y="725" width="260" height="70" rx="12"/>
+  <text class="name output" x="1030" y="754">rf_knife</text>
+  <text class="type" x="1030" y="780">Type: <tspan>DDS</tspan></text>
+  <rect class="box" x="900" y="815" width="260" height="70" rx="12"/>
+  <text class="name output" x="1030" y="844">imaging_AOM</text>
+  <text class="type" x="1030" y="870">Type: <tspan>StaticDDS</tspan></text>
+
+  <!-- Legend: a name's colour gives the labscript class its type derives from. -->
+  <g id="legend">
+    <text class="legend device" x="40" y="960">PseudoclockDevice</text>
+    <text class="legend pseudoclock" x="215" y="960">Pseudoclock</text>
+    <text class="legend clockline" x="345" y="960">ClockLine</text>
+    <text class="legend intermediate" x="460" y="960">IntermediateDevice</text>
+    <text class="legend output" x="645" y="960">Output or Input</text>
+    <text class="legend" x="40" y="990" style="fill: #5b9bd5">Arrows run from a child to its parent, labelled with its connection.</text>
+  </g>
+</svg>

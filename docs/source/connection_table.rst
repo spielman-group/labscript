@@ -2,10 +2,10 @@ Connection Table
 ================
 The connection table maps out the way input/output devices are connected to each other in your lab, and the channels (individual inputs/outputs) they have. The devices in your lab should be connected in a similar way to that shown in the figure below.
 
-.. image:: img/connection_diagram.png
+.. image:: img/connection_diagram.*
 	:alt: Example wiring diagram.
 
-Here we see two :py:class:`PseudoclockDevice <labscript.core.PseudoclockDevice>` instances in the top tier of the diagram. They do not have a parent device that tells them when to update their output (this is true for all :py:class:`PseudoclockDevice <labscript.core.PseudoclockDevice>` instances). However, all but one (the master pseudoclock device) must be triggered by an output clocked by the master pseudoclock device. 
+Here we see one :py:class:`PseudoclockDevice <labscript.core.PseudoclockDevice>` in the top tier of the diagram. No parent device tells it when to update its output; this is true for all :py:class:`PseudoclockDevice <labscript.core.PseudoclockDevice>` instances. A lab may have several, but all but one (the master pseudoclock device) must be triggered by an output clocked by the master pseudoclock device. 
 
 Each :py:class:`PseudoclockDevice <labscript.core.PseudoclockDevice>` instance should have one or more :py:class:`Pseudoclock <labscript.core.Pseudoclock>` children. Some :py:class:`PseudoclockDevice <labscript.core.PseudoclockDevice>` instances may automatically create these children for you (check the device specific documentation). In turn, each :py:class:`Pseudoclock <labscript.core.Pseudoclock>` will have one of more :py:class:`ClockLine <labscript.core.ClockLine>` instances connected to it. These :py:class:`ClockLine <labscript.core.ClockLine>` instances generally refer to physical outputs of a device which will be used to clock another device. However, in some cases, one or more :py:class:`ClockLine <labscript.core.ClockLine>` instances may be internally created for you (check the device specific documentation).
 
