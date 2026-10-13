@@ -49,10 +49,7 @@ from labscript_utils import dedent
 from labscript_utils.properties import set_attributes
 
 import labscript.functions as functions
-try:
-    from labscript_utils.unitconversions import *
-except ImportError:
-    sys.stderr.write('Warning: Failed to import unit conversion classes\n')
+from labscript_utils.unitconversions import *
 
 # Imports to maintain backwards compatibility with previous module interface
 from .base import Device, _check_name
