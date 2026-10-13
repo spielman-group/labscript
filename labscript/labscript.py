@@ -692,7 +692,7 @@ def load_globals(hdf5_filename):
     import labscript_utils.shot_utils
     params = labscript_utils.shot_utils.get_shot_globals(hdf5_filename)
     for name, value in params.items():
-        _check_name(name, globals(), 'global')
+        _check_name(name, globals(), f'global in {hdf5_filename}')
         _builtins_dict[name] = value
             
 def labscript_init(hdf5_filename, labscript_file=None, new=False, overwrite=False):
