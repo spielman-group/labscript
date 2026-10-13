@@ -22,9 +22,7 @@ class _PrimaryBLACS(Device):
 
 
 class _RemoteConnection(Device):
-    @set_passed_properties(
-        property_names = {}
-    )
+    @set_passed_properties(property_names={})
     def __init__(self, name, parent=None, connection=None):
         if parent is None:
             # define a hidden parent of top level remote connections so that
@@ -32,10 +30,25 @@ class _RemoteConnection(Device):
             if compiler._PrimaryBLACS is None:
                 compiler._PrimaryBLACS = _PrimaryBLACS('__PrimaryBLACS', None, None)
             parent = compiler._PrimaryBLACS
-        Device.__init__(self, name, parent, connection)
+        super().__init__(name, parent, connection)
 
 
 class RemoteBLACS(_RemoteConnection):
+    """A remote BLACS instance, reached at `host`:`port`."""
+
     def __init__(self, name, host, port=7341, parent=None):
-        _RemoteConnection.__init__(self, name, parent, "%s:%s"%(host, port))
+        """Instantiates a RemoteBLACS.
+
+        Parameters
+        ----------
+        name : str
+            Python variable name to assign this connection to.
+        host : str
+            Host name or address of the remote BLACS.
+        port : int, optional
+            Port of the remote BLACS.
+        parent : :obj:`RemoteBLACS`, optional
+            Parent connection. If `None`, a hidden top-level BLACS is the parent.
+        """
+        super().__init__(name, parent, f"{host}:{port}")
 

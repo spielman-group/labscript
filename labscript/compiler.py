@@ -25,8 +25,9 @@ _SAVE_HG_INFO = LabConfig().getboolean("labscript", "save_hg_info", fallback=Fal
 _SAVE_GIT_INFO = LabConfig().getboolean("labscript", "save_git_info", fallback=False)
 
 
-class Compiler(object):
-    """Compiler singleton that saves relevant parameters during compilation of each shot"""
+class Compiler:
+    """Compiler singleton that saves relevant parameters during compilation of each
+    shot."""
 
     _instance = None
 
@@ -38,7 +39,6 @@ class Compiler(object):
             # Save initial builtins state so that we (and possibly someone else) can
             # call ``reset()`` at any time.
             cls._instance.save_builtins_state()
-            # Initialise state
             cls._instance.reset()
         return cls._instance
 
@@ -46,23 +46,18 @@ class Compiler(object):
         self._existing_builtins_dict = _builtins_dict.copy()
 
     def reset(self):
-        """restores builtins and the labscript module to its state before
-        labscript_init() was called"""
-        # Reset builtins
-        for name in _builtins_dict.copy(): 
+        """Restore builtins and the labscript module to their state before
+        labscript_init() was called."""
+        for name in _builtins_dict.copy():
             if name not in self._existing_builtins_dict:
                 del _builtins_dict[name]
             else:
                 _builtins_dict[name] = self._existing_builtins_dict[name]
 
-        # Reset other variables
-
-        # The labscript file being compiled:
         self.labscript_file = None
-        # All defined devices:
         self.inventory = []
-        # The filepath of the h5 file containing globals and which will
-        # contain compilation output:
+        # The h5 file containing globals, which will also contain the compilation
+        # output:
         self.hdf5_filename = None
 
         self.start_called = False
@@ -81,7 +76,7 @@ class Compiler(object):
         # On the compiler, so that reset() restores the defaults for each shot:
         self.suppress_mild_warnings = True
         self.suppress_all_warnings = False
-        self.compression = 'gzip'  # set to 'gzip' for compression 
+        self.compression = 'gzip'
 
 
 compiler = Compiler()
