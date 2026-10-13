@@ -554,6 +554,58 @@ and the error paths) and labscript-devices' tests ran (41 passed).
     overwrite when two instructions land on one time, as a check of the
     invariant.
   - With this, labs would no longer need to quantise `t` themselves.
+- Ian's hypothesis, tested: do a long ramp's clock times drift from its
+  intended sample times? Studied on the PulseBlaster, which his labs use.
+  - How a ramp is clocked. `Pseudoclock.expand_change_times` (`core.py`)
+    first rounds the sample period to a whole number of clock ticks. It then
+    takes the sample times as start + k × that rounded period, evaluates the
+    ramp at those times, and emits clock instructions of one tick, a loop of
+    n − 2 repetitions, and a last step that reaches the next change time
+    exactly.
+  - So yes, the encoding is start plus n repetitions of one quantised step.
+    But labscript's own sample times use the same quantised step, so the
+    values are computed for the times the hardware plays. Every pseudoclock
+    in labscript-devices converts with `int(round(step / resolution))`, which
+    is exact here.
+  - PulseBlaster (PB-DDSII-300, 26.67 ns ticks of two 75 MHz cycles), a
+    10 ms ramp at 290 kHz, whose period is 129.31 ticks, compiled:
+    - one 3,440 ns tick (129 ticks), a `LOOP` of 2,905 more, then a last
+      step of 3,360 ns;
+    - the ramp ends at 10 ms exactly, and the next instruction lands on time;
+    - there are 2,907 samples where 2,900 were asked for. Against the
+      requested 3,448.3 ns grid the samples drift by up to 21.6 µs (the
+      effective rate is 290.7 kHz), but the waveform is right for the times
+      played.
+    - The dummy pseudoclock (25 ns) gave the same: steps of exactly 133 ticks,
+      0 ns from the rounded-period grid, and the next instruction exactly on
+      time.
+  - So the hypothesis does not hold in labscript's compilation. It does not
+    explain the collision errors either: those are raised before any device
+    encodes its clock, and come from the sub-tick mechanism above.
+  - One open question, on the hardware side, that would make it hold.
+    - The PulseBlaster worker passes each delay to SpinAPI as float
+      nanoseconds (`pb_inst_dds2`, `pb_inst_pbonly`).
+    - Labscript's step lengths, though whole cycles in exact arithmetic,
+      reach SpinAPI a few 1e-12 cycles below a whole cycle for about 9% of
+      step lengths on every model checked (1,831 of 19,999 on the
+      PB-DDSII-300, 1,239 on the USB model, 593 on the ESR-PRO-500).
+    - If SpinAPI converts by truncation, each such looped step is one cycle
+      short on every repetition. The error then compounds: about 39 µs over
+      the ramp above, and everything after it on the master clock is early.
+      If SpinAPI rounds to the nearest cycle, nothing happens.
+    - SpinAPI is not installed here, so this is unverified. It is settled by
+      reading SpinAPI's conversion, or by timing a long looped ramp on a
+      PulseBlaster against the intended end. If it truncates, the fix is in
+      labscript-devices: pass delays a whole number of cycles plus half a
+      cycle, or rounded to the cycle, in ns.
+  - The known PulseBlaster issue (labscript-devices `KNOWN_ISSUES.md`: a fixed
+    `pulse_width` already a whole number of half-ticks is rounded up one more)
+    does not compound this. It lengthens the high time, and the low time
+    shrinks by the same amount, so the step is unchanged. Its effect is a lower
+    `clock_limit`, so a fast ramp can be refused; only with a fixed
+    `pulse_width`, not the default symmetric pulse.
+  - Which PulseBlaster model each lab runs is not in the repos; connection
+    tables are lab-local.
 - Not built; for Ian.
 
 ## Step 4: dead code and compatibility leftovers
