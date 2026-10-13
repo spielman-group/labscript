@@ -39,7 +39,3 @@ class RemoteBLACS(_RemoteConnection):
     def __init__(self, name, host, port=7341, parent=None):
         _RemoteConnection.__init__(self, name, parent, "%s:%s"%(host, port))
 
-
-class SecondaryControlSystem(_RemoteConnection):
-    def __init__(self, name, host, port, parent=None):
-        _RemoteConnection.__init__(self, name, parent, "%s:%s"%(host, port))
