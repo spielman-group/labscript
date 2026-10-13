@@ -11,8 +11,8 @@
 #                                                                   #
 #####################################################################
 
-"""Everything else including the `start()`, `stop()`, and `wait()` functions - all other
-classes are also imported here for backwards compatibility"""
+"""Everything else, including `start()`, `stop()` and `wait()`. It also imports the
+classes scripts use, so that `from labscript import *` provides them."""
 
 import builtins
 import os
@@ -42,7 +42,7 @@ from labscript_utils.properties import set_attributes
 import labscript.functions as functions
 from labscript_utils.unitconversions import *
 
-# Imports to maintain backwards compatibility with previous module interface
+# The classes scripts use, provided through `from labscript import *`:
 from .base import Device, _check_name
 from .compiler import compiler, _builtins_dict
 from .constants import *

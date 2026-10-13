@@ -1,11 +1,5 @@
-"""Compiling a shot all the way to a shot file.
-
-Every table labscript writes on the way out is a chance to name a dtype numpy
-no longer understands, and there is no earlier warning than the compile itself
-failing: the shot file is left holding the groups written before the failure,
-so it cannot even be compiled again. One shot that uses the features which
-write those tables is enough to catch it.
-"""
+"""Compiling shots all the way to a shot file, as runmanager does: what the file
+holds, how long the shot runs, and what the compiler refuses."""
 import os
 import sys
 import tempfile

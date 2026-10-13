@@ -6,6 +6,7 @@
    :members:
    :undoc-members:
    :show-inheritance:
+   :inherited-members:
 
    {% block methods %}
    .. automethod:: __init__

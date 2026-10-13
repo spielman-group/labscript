@@ -110,8 +110,6 @@ class ClockLine(Device):
         # If no child device has specified a clock limit
         if self._clock_limit is None:
             # return the Pseudoclock clock_limit
-            # TODO: Maybe raise an error instead?
-            #       Maybe all Intermediate devices should be required to have a clock_limit?
             return self.parent_device.clock_limit
         return self._clock_limit
 
@@ -572,8 +570,6 @@ class Pseudoclock(Device):
 
         all_outputs = self.get_all_outputs()
         for output in all_outputs:
-            # TODO: Make this a bit more robust (can we assume things always have this
-            # hierarchy?)
             clock_line = output.parent_clock_line
             assert clock_line.parent_device == self
             outputs_by_clockline[clock_line].append(output)

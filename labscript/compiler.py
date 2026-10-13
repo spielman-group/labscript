@@ -78,8 +78,7 @@ class Compiler(object):
         self.save_git_info = _SAVE_GIT_INFO
         self.shot_properties = {}
 
-        # This used to be in a separate config object, but it's been moved here so it
-        # gets reset
+        # On the compiler, so that reset() restores the defaults for each shot:
         self.suppress_mild_warnings = True
         self.suppress_all_warnings = False
         self.compression = 'gzip'  # set to 'gzip' for compression 

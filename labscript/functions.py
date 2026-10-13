@@ -160,11 +160,10 @@ def square_wave(duration, level_0, level_1, frequency, phase, duty_cycle):
         # changes the output when the phase is just below a threshold where the
         # output changes values. So if a phase is just below the threshold where
         # the output changes state (within PHASE_TOLERANCE), round it up so that
-        # the output does change state there. The value of PHASE_TOLERANCE is
-        # based on the fact that labscript internally rounds all times to
-        # multiples of 0.1 ns.
-        LABSCRIPT_TIME_RESOLUTION = 0.1e-9  # 0.1 ns.
-        MIN_PHASE_STEP = frequency * LABSCRIPT_TIME_RESOLUTION
+        # the output does change state there. PHASE_TOLERANCE is half the phase
+        # advanced in 0.1 ns: well below any clock tick, well above float error.
+        TIME_TOLERANCE = 0.1e-9
+        MIN_PHASE_STEP = frequency * TIME_TOLERANCE
         PHASE_TOLERANCE = MIN_PHASE_STEP / 2.0
         # Round phases near level_0 -> level_1 transition at phase =
         # edge_phase_0_to_1.

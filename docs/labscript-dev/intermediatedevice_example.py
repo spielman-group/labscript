@@ -102,13 +102,8 @@ class NIBoard(IntermediateDevice):
                 # along with the input channel they correspond to:
                 acquisitions.append((connection,acq['label'],acq['start_time'],acq['end_time'],
                                      acq['wait_label'],acq['scale_factor'],acq['units']))
-        # The 'S256' dtype below limits the string fields to 256
-        # characters. Can't imagine this would be an issue, but to not
-        # specify the string length (using dtype=str) causes the strings
-        # to all come out empty. 'S' rather than the 'a' this used to
-        # say: 'a' was only ever an alias for it, and numpy 2.0 removed
-        # the alias. Same bytes on disk either way, so shot files written
-        # by earlier versions still read back.
+        # 'S256' limits the string fields to 256 characters; with dtype=str
+        # the strings would all come out empty.
         acquisitions_table_dtypes = [('connection','S256'), ('label','S256'), ('start',float),
                                      ('stop',float), ('wait label','S256'),('scale factor',float), ('units','S256')]
         acquisition_table= empty(len(acquisitions), dtype=acquisitions_table_dtypes)
