@@ -498,6 +498,62 @@ and the error paths) and labscript-devices' tests ran (41 passed).
 - Each is a real case. Writing them as explicit checks is step 6's business.
 - **Outcome:** Kept (Ian).
 
+#### 10. Why labs quantise their running time themselves (a finding; nothing fixed)
+
+- Report: Ian's labs quantise `t` themselves, with `quantise_to_pseudoclock` or
+  a home-made version, because otherwise the compiler gives puzzling errors.
+- Reproduced, on the dummy pseudoclock (resolution 25 ns, minimum update
+  interval 100 ns): a ramp from `t`, then `ao.constant` 0.3 ns after the
+  ramp's end, as unequal arithmetic paths to "the same time" produce.
+  - The ramp's end falls just short of a half-tick boundary, so the
+    constant's time rounds to the next tick. Compiling fails with "Commands
+    have been issued … at t=0.11 and t=0.110000025. This Pseudoclock cannot
+    support update delays shorter than 1e-07 seconds." The user wrote one
+    command at that time.
+  - Both times fall within one tick. The shot compiles, but the constant is
+    lost: the output stays at the ramp's final value, 1, where the script set
+    5. No error and no warning.
+  - With `t` quantised after every step, both compile and the output ends at
+    5.
+- The cause: instruction times are kept unquantised until after the checks
+  that compare them.
+  - `Output.add_instruction` rounds times only to 0.1 ns (`outputs.py:224`,
+    227).
+  - `Output.do_checks` then adds a "hold the final value" instruction at a
+    ramp's end time unless an instruction sits at exactly that float
+    (`outputs.py:345`). A time a fraction of a tick later does not count, so
+    there are now two instructions within one tick.
+  - `Output.offset_instructions_from_trigger` (`outputs.py:393`) quantises
+    each time to the pseudoclock and stores it by its new time (418). Two
+    instructions in one tick land on one key, and the hold, added later,
+    silently replaces the user's. Two instructions either side of a tick
+    boundary become 25 ns apart and fail the minimum-interval check in
+    `Pseudoclock.collect_change_times`.
+- A further effect, found by compiling 200 random sequences: quantising `t`
+  by hand trades one error for another.
+  - A ramp ends at its unquantised end time, and the next ramp starts at the
+    quantised `t`, which can round below it.
+  - `add_instruction` then refuses the overlap ("State of analog output … has
+    already been set to linear ramp"). This happened in 37 sequences that
+    compiled with raw `t`.
+  - No sequence failed with raw `t` and passed with quantised `t`; the failure
+    above needs times a fraction of a tick apart, which random durations rarely
+    give.
+- The fix at the cause: `add_instruction` quantises an instruction's time, and
+  a ramp's start and end, to the output's pseudoclock as it stores them, in
+  place of rounding to 0.1 ns.
+  - Every later check then compares the times the hardware will use. An
+    instruction at a ramp's end coincides with it, so no hold is added, and two
+    instructions in one tick meet the existing "already been set" warning
+    instead of one vanishing.
+  - A ramp's function keeps the duration the user gave.
+  - `offset_instructions_from_trigger` still re-quantises after subtracting a
+    secondary pseudoclock's trigger offsets. It should refuse rather than
+    overwrite when two instructions land on one time, as a check of the
+    invariant.
+  - With this, labs would no longer need to quantise `t` themselves.
+- Not built; for Ian.
+
 ## Step 4: dead code and compatibility leftovers
 
 Line numbers are `CodeHealth` at ff893be. Every class, function and
