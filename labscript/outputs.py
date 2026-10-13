@@ -221,20 +221,11 @@ class Output(Device):
         """
         if not compiler.start_called:
             raise LabscriptError("Cannot add instructions prior to calling start()")
-        # Round times to the tick of this output's pseudoclock, so that floating
-        # point errors cannot break equality checks, and every check compares the
-        # times the hardware will use. An output with no pseudoclock holds one
-        # value, and its time is only bookkeeping.
         requested = time
-        if self.pseudoclock_device is not None:
-            time = self.quantise_to_pseudoclock(time)
+        time = self._round_time(time)
         if isinstance(instruction,dict):
-            # The span the ramp's final value is evaluated at, before rounding:
-            end, initial = instruction["end time"], instruction["initial time"]
-            instruction["duration"] = round(end, 10) - round(initial, 10)
-            if self.pseudoclock_device is not None:
-                for key in ("end time", "initial time"):
-                    instruction[key] = self.quantise_to_pseudoclock(instruction[key])
+            for key in ("end time", "initial time"):
+                instruction[key] = self._round_time(instruction[key])
         # Check that time is not negative or too soon after t=0:
         if time < self.t0:
             raise LabscriptError(
@@ -245,8 +236,11 @@ class Output(Device):
         # Check that this doesn't collide with previous instructions:
         if time in self.instructions.keys():
             previous = self._requested_times[time]
-            if round(previous, 10) != round(requested, 10):
-                asked = f" (asked for at t={previous}s and t={requested}s, one tick)"
+            if previous != requested:
+                asked = (
+                    f" (asked for at t={previous}s and t={requested}s, which fall on "
+                    "one tick)"
+                )
             else:
                 asked = ""
             if not compiler.suppress_all_warnings:
@@ -306,18 +300,31 @@ class Output(Device):
         self.instructions[time] = instruction
         self._requested_times[time] = requested
 
+    def _round_time(self, t):
+        """Round `t` to this output's ticks if its pseudoclock is the master, whose
+        ticks are known now. A secondary's times are rounded to its ticks once its
+        trigger offsets are known, in `offset_instructions_from_trigger`."""
+        pseudoclock = self.pseudoclock_device
+        if pseudoclock is not None and pseudoclock.is_master_pseudoclock:
+            return self.quantise_to_pseudoclock(t)
+        return t
+
     def _add_ramp(
         self, t, duration, performed, description, samplerate, units, function, *args
     ):
         """Add a ramp from `t`, evaluating `function(duration, *args)` for the first
         `performed` seconds of it."""
+        # Durations measured from the rounded start, on the same scale as the
+        # sample times the function is evaluated at, so that their errors cancel:
+        start = self._round_time(t)
         self.add_instruction(
             t,
             {
-                "function": function(round(t + duration, 10) - round(t, 10), *args),
+                "function": function((start + duration) - start, *args),
                 "description": description,
                 "initial time": t,
                 "end time": t + performed,
+                "span": (start + performed) - start,
                 "clock rate": samplerate,
                 "units": units,
             },
@@ -344,7 +351,9 @@ class Output(Device):
             self.add_instruction(self.t0, self.default_value)  
         # Check if there are no instructions at the initial time. Generate a warning and insert an
         # instruction telling the output to start at its default value.
-        if self.t0 not in self.instructions.keys():
+        # Compare ticks: a secondary's times are only rounded to them later.
+        tick = self.quantise_to_pseudoclock
+        if tick(self.t0) not in {tick(t) for t in self.instructions}:
             if not compiler.suppress_mild_warnings and not compiler.suppress_all_warnings:
                sys.stderr.write(
                     f"WARNING: {self.name} has no initial instruction. It will "
@@ -354,26 +363,28 @@ class Output(Device):
             self.add_instruction(self.t0, self.default_value) 
         # Check that ramps have instructions following them.
         # If they don't, insert an instruction telling them to hold their final value.
+        ticks = {tick(t) for t in self.instructions}
         for instruction in list(self.instructions.values()):
             if (
                 isinstance(instruction, dict)
-                and instruction["end time"] not in self.instructions.keys()
+                and tick(instruction["end time"]) not in ticks
             ):
                 self.add_instruction(
                     instruction["end time"],
-                    instruction["function"](instruction["duration"]),
+                    instruction["function"](instruction["span"]),
                     instruction["units"],
                 )
         # Checks for trigger times:
         for trigger_time in trigger_times:
-            trigger_time = self.quantise_to_pseudoclock(trigger_time)
-            delay_end = self.quantise_to_pseudoclock(trigger_time + self.trigger_delay)
+            trigger_time = tick(trigger_time)
+            delay_end = tick(trigger_time + self.trigger_delay)
             for t, inst in self.instructions.items():
+                t = tick(t)
                 # Check no ramps are happening at the trigger time:
                 if (
                     isinstance(inst, dict)
-                    and inst["initial time"] < trigger_time
-                    and inst["end time"] > trigger_time
+                    and tick(inst["initial time"]) < trigger_time
+                    and tick(inst["end time"]) > trigger_time
                 ):
                     raise LabscriptError(
                         f"{self.description} {self.name} has a ramp "
@@ -387,7 +398,7 @@ class Output(Device):
                         f"{self.description} {self.name} has an instruction at t={t}. "
                         f"This is too soon after a trigger at t={trigger_time}, "
                         "the earliest output possible after this trigger is at "
-                        f"t={trigger_time + self.trigger_delay}"
+                        f"t={delay_end}"
                     )
                 # Check that there are no instructions too soon before the trigger:
                 if (
@@ -427,13 +438,20 @@ class Output(Device):
 
             new_time = self.quantise_to_pseudoclock(t - offset)
             if new_time in offset_instructions:
-                raise LabscriptError(
-                    f"{self.description} {self.name} has instructions at "
-                    f"t={self._requested_times[sources[new_time]]}s and "
-                    f"t={self._requested_times[t]}s, which fall on the same tick, "
-                    f"t={new_time}s, once the trigger delays of "
-                    f"{self.pseudoclock_device.name} are applied."
+                # As in add_instruction: warn, and keep the later instruction.
+                earlier, later = sorted(
+                    (sources[new_time], t), key=self._requested_times.get
                 )
+                if not compiler.suppress_all_warnings:
+                    sys.stderr.write(
+                        f"WARNING: {self.description} {self.name} has instructions "
+                        f"at t={self._requested_times[earlier]}s and "
+                        f"t={self._requested_times[later]}s, which fall on one tick, "
+                        f"t={new_time}s, of {self.pseudoclock_device.name}. Keeping "
+                        "the later.\n"
+                    )
+                if later != t:
+                    continue
             offset_instructions[new_time] = offset_instruction
             sources[new_time] = t
         self.instructions = offset_instructions
@@ -1336,6 +1354,7 @@ class DigitalQuantity(Output):
                 "description": "pulse sequence",
                 "initial time":t,
                 "end time": t + duration,
+                "span": duration,
                 "clock rate": samplerate,
                 "units": None,
             }
@@ -1589,8 +1608,8 @@ class Trigger(DigitalOut):
             self.disable(self.t0)
 
         # Compare ticks, not requested times: an edge pair within one tick is lost.
-        start = self.quantise_to_pseudoclock(t)
-        end = self.quantise_to_pseudoclock(t + duration)
+        start = self._round_time(t)
+        end = self._round_time(t + duration)
         if start == end:
             raise LabscriptError(
                 f"{self.description} {self.name} has a trigger at t = {t}s lasting "
@@ -1601,8 +1620,8 @@ class Trigger(DigitalOut):
                 "long."
             )
         for other_start, other_duration in self.triggerings:
-            other_end = self.quantise_to_pseudoclock(other_start + other_duration)
-            other_start = self.quantise_to_pseudoclock(other_start)
+            other_end = self._round_time(other_start + other_duration)
+            other_start = self._round_time(other_start)
             # Check for overlapping exposures:
             if not (end < other_start or start > other_end):
                 raise LabscriptError(

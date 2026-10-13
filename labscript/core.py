@@ -680,6 +680,9 @@ class TriggerableDevice(Device):
             t (float): Time, in seconds, to produce a trigger.
             duration (float): Duration, in seconds, of the trigger pulse.
         """
+        # On the tick of the clock that fires the trigger, so that requests from
+        # devices sharing it compare equal:
+        t = self.trigger_device.quantise_to_pseudoclock(t)
         # Only ask for a trigger if one has not already been requested by another device
         # attached to the same trigger:
         already_requested = False
@@ -853,7 +856,7 @@ class PseudoclockDevice(TriggerableDevice):
         """
         if isinstance(t, str) and t == "initial":
             t = self.initial_trigger_time
-        # Trigger times are on the tick of the clock that fires the trigger:
+        # Trigger times are on the ticks of the clock that fires the trigger:
         clock = self if self.is_master_pseudoclock else self.trigger_device
         t = clock.quantise_to_pseudoclock(t)
         if self.is_master_pseudoclock:
