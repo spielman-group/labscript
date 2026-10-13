@@ -25,6 +25,9 @@ from .utils import LabscriptError, fastflatten, set_passed_properties
 
 class IntermediateDevice(Device):
     """Base class for all devices that are to be clocked by a pseudoclock."""
+    clock_limit = None
+    """float: Fastest rate, in Hz, this device can be clocked at, or `None` for no
+    limit of its own."""
     
     @set_passed_properties(property_names = {})
     def __init__(self, name, parent_device, **kwargs):
@@ -56,7 +59,7 @@ class IntermediateDevice(Device):
  
     @property
     def minimum_clock_high_time(self):
-        if getattr(self, "clock_limit", None) is None:
+        if self.clock_limit is None:
             return 0
 
         # Convert clock limit to minimum pulse period and then divide by 2 to
@@ -87,12 +90,12 @@ class ClockLine(Device):
         Device.add_device(self, device)
         # Update clock limit if this new device is slower than all others attached
         if (
-            getattr(device, 'clock_limit', None) is not None
+            device.clock_limit is not None
             and (self._clock_limit is None or device.clock_limit < self.clock_limit)
         ):
             self._clock_limit = device.clock_limit
         # Update minimum clock high time if this new device requires a longer high time.
-        if getattr(device, 'minimum_clock_high_time', None) is not None:
+        if device.minimum_clock_high_time is not None:
             self._minimum_clock_high_time = max(
                 device.minimum_clock_high_time, self._minimum_clock_high_time
             )
