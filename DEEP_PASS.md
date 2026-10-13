@@ -520,6 +520,7 @@ methods in entry 7.
   from `labscript.remote` explicitly.
 - Proposal: delete it. Lines: 3. Visible: only to such a script, which gets an
   `ImportError`.
+- **Outcome:** Done, e58c5ba.
 
 #### 2. `no_warnings` is a historical alias of `suppress_all_warnings`
 
@@ -529,6 +530,7 @@ methods in entry 7.
 - Proposal: delete it, or give it the FutureWarning `max_or_zero` got, if a
   lab script might still use it. Lines: 1. Visible: a script using it gets a
   `NameError`, or the warning.
+- **Outcome:** Kept with a FutureWarning (Ian), ea9c096: `no_warnings` warns, then behaves as `suppress_all_warnings`.
 
 #### 3. `labscript_init`'s `load_globals_values` and the `TO_DELETE` markers
 
@@ -544,6 +546,7 @@ methods in entry 7.
 - Proposal: delete the comment, the markers and the parameter; `load_globals`
   stays. Lines: about 14. Visible: a caller passing `load_globals_values` gets
   a `TypeError`; none is known.
+- **Outcome:** Done, e31fc13.
 
 #### 4. `example.py`'s `my_ramp` is uncalled and broken
 
@@ -551,6 +554,7 @@ methods in entry 7.
   never imports `functions`.
 - Use: none, in the file or anywhere else.
 - Proposal: delete it. Lines: 3. Visible: no.
+- **Outcome:** Done, eda8d35.
 
 #### 5. `quantise_to_pseudoclock` converts sets, which no caller passes
 
@@ -559,6 +563,7 @@ methods in entry 7.
   `outputs.py:408-435`), in labscript and labscript-devices.
 - Proposal: drop the `set` branch and the docstring's mention of sets. Lines: 2.
   Visible: a set would come back as a list.
+- **Outcome:** Done, e54f599; the method stays, as core language (Ian).
 
 ### Move the users, then remove
 
@@ -575,6 +580,7 @@ methods in entry 7.
   `compiler.compression`, and the alias goes, in the same round.
 - Lines: 1 in labscript. Visible: a lab's own device importing `config` gets
   an `ImportError`. Other owners: labscript-devices.
+- **Outcome:** labscript-devices moved its 13 files to `compiler` (7ca9969; three more than listed, importing `config` in multi-line imports), and the device-writing guide too (2a76b38). `config` stays with a FutureWarning (Ian), ea9c096, since labs' own devices likely use it: it forwards reads and writes to `compiler`.
 
 ### Keep
 
@@ -583,11 +589,13 @@ methods in entry 7.
 - `AnalogQuantity.piecewise_accel_ramp` and `DigitalQuantity.repeat_pulse_sequence`.
 - They are part of the language lab scripts are written in, which no search of
   the repos can see. Keep.
+- **Outcome:** Kept (Ian).
 
 #### 8. `max_or_zero`
 
 - Deprecated with a FutureWarning in step 2 (cd41658). It goes in a later
   round, once Ian judges that lab scripts have moved off it.
+- **Outcome:** Kept (Ian).
 
 #### 9. `import builtins` and `import keyword` in `labscript.py`
 
@@ -595,6 +603,7 @@ methods in entry 7.
   hands every module-level name to scripts.
 - Ian may drop them: a script relying on the star import for these two would
   need its own `import`.
+- **Outcome:** Kept (Ian).
 
 ## Seen for later steps
 
