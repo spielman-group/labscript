@@ -803,5 +803,5 @@ one module or group each, inputs.py first as the trial.
 - **From the earlier survey:** `sine4_reverse_ramp`'s docstrings, the `core.py`
   TODOs, the narrating test docstring and the missing inherited members are
   fixed. `PseudoclockDevice.do_checks(self, outputs)` keeps its signature,
-  which differs from `TriggerableDevice.do_checks(self)`, since devices call
-  it; `generate_code` says why it bypasses the parent.
+  which differs from `TriggerableDevice.do_checks(self)`, since a lab's own
+  devices may override it; `generate_code` says why it bypasses the parent.
