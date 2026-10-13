@@ -361,6 +361,134 @@ The agreed plan, to be built in a later session. Nothing is changed yet.
   different times.
 - **Outcome:** Left (Ian).
 
+## Step 3: root causes
+
+Every guard in `labscript/` (try/except, hasattr, getattr with a default, and
+special cases around them) was traced to its cause. All are upstream's. Line
+numbers are `CodeHealth` at a423925. "Fired" means seen by running: a copy of
+labscript logged each guard as it fired while every step 2 shot compiled (the
+example, the test shot, NovaTech, QuickSyn, PulseBlaster, the ramps, globals
+and the error paths) and labscript-devices' tests ran (41 passed).
+
+### Fix the cause
+
+#### 1. `Device` creates `_properties` in four places
+
+- Where: `base.py:125` (`__init__`, "may be instantiated already"), 214
+  (`set_property`), 302 (`get_property`) and 332 (`get_properties`).
+- Cause: NI_DAQmx's constructor calls `set_property('__version__', ...)`
+  (`NI_DAQmx/labscript_devices.py:315`) before `IntermediateDevice.__init__`
+  (319). It is the only caller: the `set_property` and `__init__` guards fired
+  for NI_PCIe_6363 and NI_PCI_6733 alone, and the `get_property` and
+  `get_properties` guards never fired.
+- Proposal:
+  - NI_DAQmx sets the property after calling `IntermediateDevice.__init__`;
+  - `Device.__init__` creates the storage unconditionally;
+  - the two getter guards go;
+  - `set_property` raises a clear `LabscriptError` if called before
+    `Device.__init__`, saying to call it first, rather than tolerating it.
+- Core lines: about 8 removed. Visible: only to a device written that way,
+  which gets the clear error. Other owners: labscript-devices, two lines.
+
+#### 2. The circular import behind `is_remote_connection`, `is_clock_line` and `is_pseudoclock_device`
+
+- Where: `utils.py:43`, 58 and 73, each a deferred, cached import, used by
+  `Device` in `base.py:157`, 166, 364-375 and 407-418.
+- Cause: `Device` asks whether itself or a parent is a `ClockLine`, a
+  `PseudoclockDevice` or a `_RemoteConnection`. Those classes live in modules
+  that import `base`.
+- Proposal:
+  - The first two questions belong to the subclasses. `Device.pseudoclock_device`
+    returns its parent's (or `None` at the top), and `PseudoclockDevice`
+    overrides it to return itself. `Device.parent_clock_line` returns its
+    parent's, `ClockLine` overrides it to return itself, and a device with no
+    clock line above it raises a clear `LabscriptError` naming the device.
+  - The third is a check of a user's `gui` or `worker` argument, made only when
+    one is given. A function-local `from .remote import _RemoteConnection`
+    there does it.
+  - All three helpers and their module globals go.
+- Evidence:
+  - The catch-all `except` around the clock-line walk fires when a device has
+    no clock line above it. Run on a top-level DummyPseudoclock, it gives
+    "Couldn't find parent ClockLine of pc, what's going on? Original error was
+    'NoneType' object has no attribute 'parent_device'."
+  - The `except` around the pseudoclock walk can never fire, since its loop
+    stops at `None`; it never fired.
+  - No other repo uses the helpers (`git grep -w` exit 1 in labscript-devices,
+    labscript-utils, blacs, runmanager, runviewer, lyse,
+    labscript-optimization, labscript-agents and hyde).
+- Core lines: about 50 removed. Visible: the error for a device with no clock
+  line is reworded, for the better. Other owners: none.
+
+#### 3. The unit-conversion import is wrapped to warn on failure
+
+- Where: `labscript.py:52-55`, `try: from labscript_utils.unitconversions
+  import *` with a warning on `ImportError`.
+- Cause, no longer real: `unitconversions` is part of labscript-utils, a hard
+  dependency, and it imports. If it failed, scripts would warn and then fail
+  later with a `NameError` on a conversion class.
+- Proposal: a plain import, so a broken install raises with its cause.
+- Core lines: 3 removed. Visible: no.
+
+#### 4. `IntermediateDevice` and `ClockLine` read `clock_limit` with `getattr`
+
+- Where: `core.py:59`, 86 (`clock_limit`) and 91 (`minimum_clock_high_time`).
+- Cause, real: DummyCamera, TriggerableCamera and ZaberStageController declare
+  no `clock_limit`, since they have no clocked outputs. ClockLine's own comment
+  (`core.py:108`) asks whether every intermediate device should have one.
+- Proposal: `IntermediateDevice` declares `clock_limit = None`, meaning no limit
+  of its own, and the reads become plain attributes.
+  `minimum_clock_high_time` is a property of every `IntermediateDevice`, which
+  is `ClockLine`'s only allowed child, so its `getattr` goes too.
+- Core lines: about 0; the protocol becomes explicit. Visible: no.
+
+#### 5. `AnalogQuantity.constant` uses a bare `except`
+
+- Where: `outputs.py:1113-1119`, checking that the value converts to float.
+- Proposal: catch `(TypeError, ValueError)`, and drop the unused `val`. The
+  bare `except` also catches Ctrl-C.
+- Core lines: 1 removed. Visible: no.
+
+### Keep, with the reason
+
+#### 6. `Pseudoclock.expand_change_times` skips outputs without a `timeseries`
+
+- Where: `core.py:393`.
+- Fired 48 times, all for static channels (`StaticAnalogQuantity`) under
+  NovaTech's clock line. Static outputs never build a timeseries and never
+  sweep, so skipping them is right. The test is the cheapest correct one.
+
+#### 7. Protocol checks with real absent cases
+
+- `hasattr(device, 'BLACS_connection')` (`labscript.py:237`, 444): the device
+  has a BLACS tab.
+- `getattr(device, 'unit_conversion_class', None)` (247): only outputs have one.
+- `hasattr(parent_device, 'get_default_unit_conversion_classes')`
+  (`outputs.py:1666`): fired True for NovaTechDDS9M, False for PulseBlaster's
+  direct outputs.
+- `hasattr(self.calibration, ...)` (`outputs.py:88`, 96): checks a user's unit
+  name.
+- `hasattr(inst, name)` in `set_passed_properties` (`utils.py:129`): the
+  documented override by an instance attribute.
+- `hasattr(parent_device, "name")` (`core.py:45`): names a non-device parent a
+  user passed, in the error.
+
+#### 8. Real external conditions
+
+- git or hg missing (`_have_vcs`, `labscript.py:301`).
+- No `labscriptlib` installed (395).
+- Modules without `__file__` (401).
+- A shot file already holding compilation data (509), turned into a clear
+  error.
+
+#### 9. End-of-sequence cases expressed as exceptions
+
+- `core.py:367`, warning that a clock line's last change precedes another's.
+- `core.py:498`, re-raising unless at the last change time.
+- `outputs.py:516`, a one-element ramp.
+- `functions.py:218`, a scalar or an array.
+- Each is a real case. Writing them as explicit checks is step 6's business.
+
 ## Seen for later steps
 
 Each was re-checked on `CodeHealth` at 3510de2. All are upstream's code.
@@ -393,3 +521,6 @@ Each was re-checked on `CodeHealth` at 3510de2. All are upstream's code.
     autosummary class template (`docs/source/_templates/autosummary-class.rst`)
     omits `:inherited-members:`. Inferred from the template; the docs were not
     built.
+- **Step 4.** `Device.quantise_to_pseudoclock` (`base.py:378`) converts a set
+  back to a set, but no caller passes one: they pass arrays, lists and floats
+  (`core.py:216`, 264, 893-894; `outputs.py:408-435`).
