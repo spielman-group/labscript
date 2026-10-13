@@ -498,6 +498,8 @@ and the error paths) and labscript-devices' tests ran (41 passed).
 - Each is a real case. Writing them as explicit checks is step 6's business.
 - **Outcome:** Kept (Ian).
 
+### Follow-up
+
 #### 10. Why labs quantise their running time themselves (a finding; nothing fixed)
 
 - Report: Ian's labs quantise `t` themselves, with `quantise_to_pseudoclock` or
