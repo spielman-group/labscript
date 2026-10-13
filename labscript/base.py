@@ -382,7 +382,7 @@ class Device(object):
         """:obj:`ClockLine`: Stores the clocking clockline, which may be itself."""
         if self.parent_device is None:
             raise LabscriptError(
-                f"{self.name} has no parent, so the devices below it have no ClockLine."
+                f"There is no ClockLine above {self.name}, which has no parent."
             )
         return self.parent_device.parent_clock_line
     

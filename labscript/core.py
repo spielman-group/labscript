@@ -95,10 +95,9 @@ class ClockLine(Device):
         ):
             self._clock_limit = device.clock_limit
         # Update minimum clock high time if this new device requires a longer high time.
-        if device.minimum_clock_high_time is not None:
-            self._minimum_clock_high_time = max(
-                device.minimum_clock_high_time, self._minimum_clock_high_time
-            )
+        self._minimum_clock_high_time = max(
+            device.minimum_clock_high_time, self._minimum_clock_high_time
+        )
 
     @property
     def clock_limit(self):
