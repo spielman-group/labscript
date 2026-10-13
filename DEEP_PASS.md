@@ -498,22 +498,108 @@ and the error paths) and labscript-devices' tests ran (41 passed).
 - Each is a real case. Writing them as explicit checks is step 6's business.
 - **Outcome:** Kept (Ian).
 
+## Step 4: dead code and compatibility leftovers
+
+Line numbers are `CodeHealth` at ff893be. Every class, function and
+module-level name in `labscript/` (142) was searched by whole word in the `.py`
+files of labscript, labscript-devices, labscript-utils, blacs, runmanager,
+lyse, runviewer, labscript-optimization, labscript-agents, labscript-suite,
+zprocess and hyde. A control matched each name's own definition. Four names have
+no use outside their definition: the first two entries below, and the public
+methods in entry 7.
+
+### Remove
+
+#### 1. `SecondaryControlSystem` is never used
+
+- Where: `remote.py:43-45`. Added in b798c58 (2017) for BLACS "secondary control
+  systems", which were never built; its `port` has no default, unlike
+  `RemoteBLACS`.
+- Use: none in any repo. It is not in `from labscript import *`, since
+  `labscript.py` does not import `remote`, so a script would have to import it
+  from `labscript.remote` explicitly.
+- Proposal: delete it. Lines: 3. Visible: only to such a script, which gets an
+  `ImportError`.
+
+#### 2. `no_warnings` is a historical alias of `suppress_all_warnings`
+
+- Where: `labscript.py:102`. `suppress_all_warnings` was first named
+  `no_warnings` (e9cd64a, 2012), and the alias was kept on renaming.
+- Use: none in any repo, but `from labscript import *` hands it to every script.
+- Proposal: delete it, or give it the FutureWarning `max_or_zero` got, if a
+  lab script might still use it. Lines: 1. Visible: a script using it gets a
+  `NameError`, or the warning.
+
+#### 3. `labscript_init`'s `load_globals_values` and the `TO_DELETE` markers
+
+- Where: `labscript.py:26-33` (a "Notes for v3" comment), 703-704, 712-713 and
+  736-739 (markers), and the `load_globals_values=True` parameter of
+  `labscript_init` (714, 722, 737).
+- History: in 2018 upstream planned to move globals loading from labscript to
+  runmanager's batch compiler (660de86, f10af8b), and marked the labscript side
+  for deletion. The move never happened. runmanager's `batch_compiler.py` calls
+  `labscript_init` with the default on `master`, `Development` and `CodeHealth`
+  alike, so `load_globals` is the live mechanism.
+- Use of `load_globals_values`: no caller in any repo passes it.
+- Proposal: delete the comment, the markers and the parameter; `load_globals`
+  stays. Lines: about 14. Visible: a caller passing `load_globals_values` gets
+  a `TypeError`; none is known.
+
+#### 4. `example.py`'s `my_ramp` is uncalled and broken
+
+- Where: `example.py:231-233`. It calls `functions.sine_ramp`, but `example.py`
+  never imports `functions`.
+- Use: none, in the file or anywhere else.
+- Proposal: delete it. Lines: 3. Visible: no.
+
+#### 5. `quantise_to_pseudoclock` converts sets, which no caller passes
+
+- Where: `base.py:367-368`, the `set` branch, and the docstring at 357.
+- Use: callers pass arrays, lists and floats (`core.py:216`, 264, 893-894;
+  `outputs.py:408-435`), in labscript and labscript-devices.
+- Proposal: drop the `set` branch and the docstring's mention of sets. Lines: 2.
+  Visible: a set would come back as a list.
+
+### Move the users, then remove
+
+#### 6. `config` is an alias of `compiler`
+
+- Where: `labscript.py:101`, `config = compiler`. labscript's settings once lived
+  in a separate `config` object; the 2023 refactor (5345e6d) moved them onto
+  `compiler`, so that they reset with it, and kept the name.
+- Use: ten labscript-devices files import `config` from labscript (AlazarTech,
+  Cicero, DummyIntermediateDevice, DummyPseudoclock, LightCrafterDMD, NovaTech,
+  PhaseMatrixQuickSyn, PineBlaster, PulseBlaster_No_DDS and RFBlaster). They
+  use it 21 times, all as `config.compression`.
+- Proposal: labscript-devices imports `compiler` and reads
+  `compiler.compression`, and the alias goes, in the same round.
+- Lines: 1 in labscript. Visible: a lab's own device importing `config` gets
+  an `ImportError`. Other owners: labscript-devices.
+
+### Keep
+
+#### 7. Public methods no repo calls
+
+- `AnalogQuantity.piecewise_accel_ramp` and `DigitalQuantity.repeat_pulse_sequence`.
+- They are part of the language lab scripts are written in, which no search of
+  the repos can see. Keep.
+
+#### 8. `max_or_zero`
+
+- Deprecated with a FutureWarning in step 2 (cd41658). It goes in a later
+  round, once Ian judges that lab scripts have moved off it.
+
+#### 9. `import builtins` and `import keyword` in `labscript.py`
+
+- Unused there since step 2, and kept only because `from labscript import *`
+  hands every module-level name to scripts.
+- Ian may drop them: a script relying on the star import for these two would
+  need its own `import`.
+
 ## Seen for later steps
 
 Each was re-checked on `CodeHealth` at 3510de2. All are upstream's code.
 
-- **Step 4, dead code and compatibility leftovers.**
-  - `labscript.py:108`, `config = compiler`, and 109, `no_warnings =
-    suppress_all_warnings` ("Historical alias"). `no_warnings` is used in no
-    repo, hyde included; `config` was not searched yet.
-  - `labscript.py:28`, 710, 739 and 763: comments marking `load_globals` and
-    `labscript_init`'s `load_globals_values` as
-    `TO_DELETE:runmanager-batchompiler-agnostic`. The code is live:
-    runmanager's `batch_compiler.py:59` calls `labscript_init` with the default
-    `load_globals_values=True`, so only the stale markers would go.
-  - `remote.py:43`, `SecondaryControlSystem`, used in no repo, hyde included.
-  - `example.py:231`, `my_ramp`, is never called and uses `functions`, which
-    `example.py` never imports.
 - **Step 6, style.**
   - `functions.py:86` and `outputs.py:736`: `sine4_reverse_ramp`'s docstrings
     say "decreasing", but it runs `sine4_ramp` backwards in time, from `final`
@@ -529,6 +615,3 @@ Each was re-checked on `CodeHealth` at 3510de2. All are upstream's code.
     autosummary class template (`docs/source/_templates/autosummary-class.rst`)
     omits `:inherited-members:`. Inferred from the template; the docs were not
     built.
-- **Step 4.** `Device.quantise_to_pseudoclock` (`base.py:378`) converts a set
-  back to a set, but no caller passes one: they pass arrays, lists and floats
-  (`core.py:216`, 264, 893-894; `outputs.py:408-435`).
