@@ -677,14 +677,15 @@ def add_time_marker(t, label, color=None, verbose=False):
     Raises
     ------
     ValueError
-        If `color` is a string PIL cannot parse.
+        If `color` is a string PIL cannot parse, or an RGB tuple with a value
+        outside 0 to 255.
     """
     if isinstance(color, (str, bytes)):
         import PIL.ImageColor
         color = PIL.ImageColor.getrgb(color)
     if color is None:
         color = (-1, -1, -1)
-    elif not all(0 <= n <= 255 for n in color):
+    elif not builtins.all(0 <= n <= 255 for n in color):
         raise ValueError(f"Invalid RGB tuple {color}")
     if verbose:
         functions.print_time(t, label)

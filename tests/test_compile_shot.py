@@ -146,6 +146,10 @@ class CompileTests(unittest.TestCase):
         with self.assertRaises(labscript.LabscriptError):
             self.compile_the_shot()
 
+    def test_a_time_marker_refuses_an_invalid_colour(self):
+        with self.assertRaises(ValueError):
+            labscript.add_time_marker(0, 'marker', color=(300, 0, 0))
+
     def test_a_pseudoclock_refuses_children_beyond_its_limit(self):
         for extra in (
             "ClockLine(name='extra', pseudoclock=pseudoclock.pseudoclock, "
