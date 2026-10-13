@@ -564,6 +564,9 @@ class Output(Device):
                     # by another ramp or not:
                     next_time = all_times[i+1][0] if np.iterable(all_times[i+1]) else all_times[i+1]
                     midpoints[-1] = time[-1] + 0.5*(next_time - time[-1])
+                    # These are differences of absolute float times, so values carry
+                    # float noise in their last bit, either way. Counting each sample's
+                    # time in the ramp in whole ticks would make them exact.
                     outarray = self.timeseries[i]["function"](
                         midpoints - self.timeseries[i]["initial time"]
                     )
