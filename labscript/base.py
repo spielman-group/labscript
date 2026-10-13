@@ -354,7 +354,7 @@ class Device(object):
         """Quantises `times` to the resolution of the controlling pseudoclock.
 
         Args:
-            times (:obj:`numpy:numpy.ndarray` or list or set or float): Time, 
+            times (:obj:`numpy:numpy.ndarray` or list or float): Time, 
                 in seconds, to quantise.
 
         Returns:
@@ -364,8 +364,6 @@ class Device(object):
         if not isinstance(times, np.ndarray):
             if isinstance(times, list):
                 convert_back_to = list
-            elif isinstance(times, set):
-                convert_back_to = set
             else:
                 convert_back_to = float
             times = np.array(times)
