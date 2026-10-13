@@ -23,15 +23,6 @@ import threading
 from functools import lru_cache
 import numpy as np
 
-# Notes for v3
-#
-# Anything commented with TO_DELETE:runmanager-batchompiler-agnostic 
-# can be removed with a major version bump of labscript (aka v3+)
-# We leave it in now to maintain backwards compatibility between new labscript
-# and old runmanager.
-# The code to be removed relates to the move of the globals loading code from
-# labscript to runmanager batch compiler.
-
 import labscript_utils.h5_lock, h5py
 import labscript_utils.properties
 from labscript_utils.filewatcher import FileWatcher
@@ -700,8 +691,6 @@ def stop(t, target_cycle_time=None, cycle_time_delay_after_programming=False):
     compiler.shot_properties['cycle_time_delay_after_programming'] = cycle_time_delay_after_programming
     generate_code()
 
-# TO_DELETE:runmanager-batchompiler-agnostic
-#   entire function load_globals can be deleted
 def load_globals(hdf5_filename):
     import labscript_utils.shot_utils
     params = labscript_utils.shot_utils.get_shot_globals(hdf5_filename)
@@ -709,9 +698,7 @@ def load_globals(hdf5_filename):
         _check_name(name, globals(), 'global')
         _builtins_dict[name] = value
             
-# TO_DELETE:runmanager-batchompiler-agnostic 
-#   load_globals_values=True            
-def labscript_init(hdf5_filename, labscript_file=None, new=False, overwrite=False, load_globals_values=True):
+def labscript_init(hdf5_filename, labscript_file=None, new=False, overwrite=False):
     """Initialises labscript and prepares for compilation.
 
     Args:
@@ -733,10 +720,8 @@ def labscript_init(hdf5_filename, labscript_file=None, new=False, overwrite=Fals
             os.unlink(hdf5_filename)
     elif not os.path.exists(hdf5_filename):
         raise LabscriptError('Provided hdf5 filename %s doesn\'t exist.'%hdf5_filename)
-    # TO_DELETE:runmanager-batchompiler-agnostic 
-    elif load_globals_values:
+    else:
         load_globals(hdf5_filename) 
-    # END_DELETE:runmanager-batchompiler-agnostic 
     
     compiler.hdf5_filename = hdf5_filename
     if labscript_file is None:
