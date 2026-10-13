@@ -26,46 +26,45 @@ from .compiler import compiler
 def print_time(t, description):
     """Print time with a descriptive string.
 
-    Useful debug tool to print time at a specific point
-    in the shot, during shot compilation. Helpful when
-    the time is calculated.
+    Useful debug tool to print time at a specific point in the shot, during shot
+    compilation. Helpful when the time is calculated.
 
-    Args:
-        t (float): Time to print
-        description (str): Descriptive label to print with it
+    Parameters
+    ----------
+    t : float
+        Time to print.
+    description : str
+        Descriptive label to print with it.
     """
     print(f"t={t:.9f}s: {description}")
 
 
 def set_passed_properties(property_names=None):
-    """
-    Decorator for device __init__ methods that saves the listed arguments/keyword
-    arguments as properties. 
+    """Decorator for device __init__ methods that saves arguments as properties.
 
-    Argument values as passed to __init__ will be saved, with
-    the exception that if an instance attribute exists after __init__ has run that has
-    the same name as an argument, the instance attribute will be saved instead of the
-    argument value. This allows code within __init__ to process default arguments
-    before they are saved.
+    Argument values as passed to __init__ will be saved, with the exception that if an
+    instance attribute exists after __init__ has run that has the same name as an
+    argument, the instance attribute will be saved instead of the argument value. This
+    allows code within __init__ to process default arguments before they are saved.
 
-    Internally, all properties are accessed by calling :obj:`self.get_property() <Device.get_property>`.
-    
-    Args:
-        property_names (dict): A dictionary {key:val}, where each ``val``
-            is a list [var1, var2, ...] of instance attribute names and/or method call
-            arguments (of the decorated method). Values of the instance
-            attributes/method call arguments will be saved to the location specified by
-            ``key``.
+    Internally, all properties are accessed by calling
+    :obj:`self.get_property() <Device.get_property>`.
+
+    Parameters
+    ----------
+    property_names : dict
+        A dictionary {key:val}, where each ``val`` is a list [var1, var2, ...] of
+        instance attribute names and/or method call arguments (of the decorated
+        method). Values of the instance attributes/method call arguments will be
+        saved to the location specified by ``key``.
     """
     property_names = property_names or {}
 
     def decorator(func):
         @wraps(func)
         def new_function(inst, *args, **kwargs):
-
             return_value = func(inst, *args, **kwargs)
 
-            # Get a dict of the call arguments/keyword arguments by name:
             call_values = getcallargs(func, inst, *args, **kwargs)
 
             # In declaration order, so that a shot file's bytes are reproducible:
@@ -82,42 +81,47 @@ def set_passed_properties(property_names=None):
                 else:
                     property_values[name] = call_values[name]
 
-            # Save them:
             inst.set_properties(property_values, property_names)
 
             return return_value
 
         return new_function
-    
+
     return decorator
 
 
 def fastflatten(inarray, dtype):
     """A faster way of flattening our arrays than pylab.flatten.
 
-    pylab.flatten returns a generator which takes a lot of time and memory
-    to convert into a numpy array via array(list(generator)).  The problem
-    is that generators don't know how many values they'll return until
-    they're done. This algorithm produces a numpy array directly by
-    first calculating what the length will be. It is several orders of
-    magnitude faster. Note that we can't use numpy.ndarray.flatten here
-    since our inarray is really a list of 1D arrays of varying length
-    and/or single values, not a N-dimenional block of homogeneous data
+    pylab.flatten returns a generator which takes a lot of time and memory to convert
+    into a numpy array via array(list(generator)). The problem is that generators
+    don't know how many values they'll return until they're done. This algorithm
+    produces a numpy array directly by first calculating what the length will be. It
+    is several orders of magnitude faster. Note that we can't use
+    numpy.ndarray.flatten here since our inarray is really a list of 1D arrays of
+    varying length and/or single values, not a N-dimensional block of homogeneous data
     like a numpy array.
 
-    Args:
-        inarray (list): List of 1-D arrays to flatten.
-        dtype (data-type): Type of the data in the arrays.
+    Parameters
+    ----------
+    inarray : list
+        List of 1-D arrays to flatten.
+    dtype : data-type
+        Type of the data in the arrays.
 
-    Returns:
-        :obj:`numpy:numpy.ndarray`: Flattened array.
+    Returns
+    -------
+    :obj:`numpy:numpy.ndarray`
+        Flattened array.
     """
-    total_points = np.sum([len(element) if np.iterable(element) else 1 for element in inarray])
-    flat = np.empty(total_points,dtype=dtype)
+    total_points = np.sum(
+        [len(element) if np.iterable(element) else 1 for element in inarray]
+    )
+    flat = np.empty(total_points, dtype=dtype)
     i = 0
     for val in inarray:
         if np.iterable(val):
-            flat[i:i+len(val)] = val[:]
+            flat[i : i + len(val)] = val[:]
             i += len(val)
         else:
             flat[i] = val
@@ -129,16 +133,20 @@ def max_or_zero(*args, **kwargs):
     """Returns max of the arguments or zero if sequence is empty.
 
     Deprecated: use ``max(..., default=0)``.
-    
+
     This protects the call to `max()` which would normally throw an error on an empty
     sequence.
 
-    Args:
-        *args: Items to compare.
-        **kwargs: Passed to `max()`.
+    Parameters
+    ----------
+    *args
+        Items to compare.
+    **kwargs
+        Passed to `max()`.
 
-    Returns:
-        : Max of ``*args``.
+    Returns
+    -------
+    Max of ``*args``.
     """
     warnings.warn(
         "max_or_zero will be removed from labscript; use max(..., default=0).",
@@ -153,16 +161,20 @@ def max_or_zero(*args, **kwargs):
         return max(*args, **kwargs)
 
 
-def bitfield(arrays,dtype):
-    """Converts a list of arrays of ones and zeros into a single
-    array of unsigned ints of the given datatype.
+def bitfield(arrays, dtype):
+    """Converts a list of arrays of ones and zeros into a single array of unsigned ints.
 
-    Args:
-        arrays (list): List of numpy arrays consisting of ones and zeros.
-        dtype (data-type): Type to convert to.
+    Parameters
+    ----------
+    arrays : list
+        List of numpy arrays consisting of ones and zeros.
+    dtype : data-type
+        Type to convert to; the unsigned ints are of this datatype.
 
-    Returns:
-        :obj:`numpy:numpy.ndarray`: Numpy array with data type `dtype`.
+    Returns
+    -------
+    :obj:`numpy:numpy.ndarray`
+        Numpy array with data type `dtype`.
     """
     n = {np.uint8: 8, np.uint16: 16, np.uint32: 32}
     if np.array_equal(arrays[0], 0):
@@ -184,9 +196,10 @@ def suppress_mild_warnings(state=True):
     Allows the user to suppress (or show) mild warnings for specific lines. Useful when
     you want to hide/show all warnings from specific lines.
 
-    Arguments:
-        state (bool): The new state for ``compiler.suppress_mild_warnings``. Defaults to
-        ``True`` if not explicitly provided.
+    Parameters
+    ----------
+    state : bool, optional
+        The new state for ``compiler.suppress_mild_warnings``. Defaults to ``True``.
     """
     previous_warning_setting = compiler.suppress_mild_warnings
     compiler.suppress_mild_warnings = state
@@ -202,10 +215,11 @@ def suppress_all_warnings(state=True):
 
     Allows the user to suppress (or show) all warnings for specific lines. Useful when
     you want to hide/show all warnings from specific lines.
-    
-    Arguments:
-        state (bool): The new state for ``compiler.suppress_all_warnings``. Defaults to
-        ``True`` if not explicitly provided.
+
+    Parameters
+    ----------
+    state : bool, optional
+        The new state for ``compiler.suppress_all_warnings``. Defaults to ``True``.
     """
     previous_warning_setting = compiler.suppress_all_warnings
     compiler.suppress_all_warnings = state
