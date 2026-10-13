@@ -71,6 +71,10 @@ class ClockLine(Device):
     _clock_limit = None
     _minimum_clock_high_time = 0
 
+    @property
+    def parent_clock_line(self):
+        return self
+
     @set_passed_properties(property_names = {})
     def __init__(self, name, pseudoclock, connection, ramping_allowed=True, **kwargs):
         
@@ -746,6 +750,10 @@ class PseudoclockDevice(TriggerableDevice):
     # How long after the start of a wait instruction the device is actually capable of resuming:
     wait_delay = 0
     
+    @property
+    def pseudoclock_device(self):
+        return self
+
     @set_passed_properties(property_names = {})
     def __init__(self, name, trigger_device=None, trigger_connection=None, **kwargs):
         """Instantiates a pseudoclock device.

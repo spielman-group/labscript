@@ -22,9 +22,6 @@ import labscript_utils.properties
 from .compiler import compiler, _builtins_dict
 from .utils import (
     LabscriptError,
-    is_clock_line,
-    is_pseudoclock_device,
-    is_remote_connection,
     set_passed_properties
 )
 
@@ -143,6 +140,8 @@ class Device(object):
         
         # handle remote workers/gui interface
         if gui is not None or worker is not None:
+            # remote imports this module, so it can only be imported once loaded
+            from .remote import _RemoteConnection
             # remote GUI and worker
             if gui is not None:
                 # if no worker is specified, assume it is the same as the gui
@@ -150,7 +149,7 @@ class Device(object):
                     worker = gui
                     
                 # check that worker and gui are appropriately typed
-                if not is_remote_connection(gui):
+                if not isinstance(gui, _RemoteConnection):
                     raise LabscriptError(
                         f"The 'gui' argument for {name} must be specified as a "
                         "subclass of _RemoteConnection"
@@ -159,7 +158,7 @@ class Device(object):
                 # just remote worker
                 gui = compiler._PrimaryBLACS
             
-            if not is_remote_connection(worker):
+            if not isinstance(worker, _RemoteConnection):
                 raise LabscriptError(
                         f"The 'worker' argument for {name} must be specified as a "
                         "subclass of _RemoteConnection"
@@ -347,18 +346,9 @@ class Device(object):
     @property    
     def pseudoclock_device(self):
         """:obj:`PseudoclockDevice`: Stores the clocking pseudoclock, which may be itself."""
-        if is_pseudoclock_device(self):
-            return self 
-        parent = self.parent_device
-        try:
-            while parent is not None and not is_pseudoclock_device(parent):
-                parent = parent.parent_device
-            return parent
-        except Exception as e:
-            raise LabscriptError(
-                f"Couldn't find parent pseudoclock device of {self.name}, what's going "
-                f"on? Original error was {e}."
-            )
+        if self.parent_device is None:
+            return None
+        return self.parent_device.pseudoclock_device
     
     def quantise_to_pseudoclock(self, times):
         """Quantises `times` to the resolution of the controlling pseudoclock.
@@ -390,18 +380,11 @@ class Device(object):
     @property 
     def parent_clock_line(self):
         """:obj:`ClockLine`: Stores the clocking clockline, which may be itself."""
-        if is_clock_line(self):
-            return self
-        parent = self.parent_device
-        try:
-            while not is_clock_line(parent):
-                parent = parent.parent_device
-            return parent
-        except Exception as e:
+        if self.parent_device is None:
             raise LabscriptError(
-                f"Couldn't find parent ClockLine of {self.name}, what's going on? "
-                f"Original error was {e}."
+                f"{self.name} has no parent, so the devices below it have no ClockLine."
             )
+        return self.parent_device.parent_clock_line
     
     @property
     def t0(self):

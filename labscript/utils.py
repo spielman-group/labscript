@@ -22,10 +22,6 @@ import numpy as np
 
 from .compiler import compiler
 
-cached_RemoteConnection = None
-cached_ClockLine = None
-cached_PseudoclockDevice = None
-
 
 def print_time(t, description):
     """Print time with a descriptive string.
@@ -39,51 +35,6 @@ def print_time(t, description):
         description (str): Descriptive label to print with it
     """
     print(f"t={t:.9f}s: {description}")
-
-
-def is_remote_connection(connection):
-    """Returns whether the connection is an instance of ``_RemoteConnection``
-    
-    This function defers and caches the import of ``_RemoteConnection``. This both
-    breaks the circular import between ``Device`` and ``_RemoteConnection``, while
-    maintaining reasonable performance (this performs better than importing each time as
-    the lookup in the modules hash table is slower).
-    """
-    global cached_RemoteConnection
-    if cached_RemoteConnection is None:
-        from .remote import _RemoteConnection
-        cached_RemoteConnection = _RemoteConnection
-    return isinstance(connection, cached_RemoteConnection)
-
-
-def is_clock_line(device):
-    """Returns whether the connection is an instance of ``ClockLine``
-    
-    This function defers and caches the import of ``ClockLine``. This both
-    breaks the circular import between ``Device`` and ``ClockLine``, while
-    maintaining reasonable performance (this performs better than importing each time as
-    the lookup in the modules hash table is slower).
-    """
-    global cached_ClockLine
-    if cached_ClockLine is None:
-        from .core import ClockLine
-        cached_ClockLine = ClockLine
-    return isinstance(device, cached_ClockLine)
-
-
-def is_pseudoclock_device(device):
-    """Returns whether the connection is an instance of ``PseudoclockDevice``
-    
-    This function defers and caches the import of ``PseudoclockDevice``. This both
-    breaks the circular import between ``Device`` and ``PseudoclockDevice``, while
-    maintaining reasonable performance (this performs better than importing each time as
-    the lookup in the modules hash table is slower).
-    """
-    global cached_PseudoclockDevice
-    if cached_PseudoclockDevice is None:
-        from .core import PseudoclockDevice
-        cached_PseudoclockDevice = PseudoclockDevice
-    return isinstance(device, cached_PseudoclockDevice)
 
 
 def set_passed_properties(property_names=None):
