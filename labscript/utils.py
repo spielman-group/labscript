@@ -138,7 +138,7 @@ def max_or_zero(*args, **kwargs):
         **kwargs: Passed to `max()`.
 
     Returns:
-        : Max of *args.
+        : Max of ``*args``.
     """
     warnings.warn(
         "max_or_zero will be removed from labscript; use max(..., default=0).",

@@ -35,6 +35,9 @@ from labscript_utils.filewatcher import FileWatcher
 import qtutils
 
 from pylab import *
+# numpy's deprecated core alias, which would otherwise replace labscript.core
+# in the package's namespace through `from labscript.labscript import *`:
+del core
 
 from labscript_utils import dedent
 from labscript_utils.properties import set_attributes
