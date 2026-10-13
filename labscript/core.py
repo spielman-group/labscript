@@ -682,7 +682,7 @@ class TriggerableDevice(Device):
         """
         # On the tick of the clock that fires the trigger, so that requests from
         # devices sharing it compare equal:
-        t = self.trigger_device.quantise_to_pseudoclock(t)
+        t = self.trigger_device._round_time(t)
         # Only ask for a trigger if one has not already been requested by another device
         # attached to the same trigger:
         already_requested = False
@@ -843,7 +843,7 @@ class PseudoclockDevice(TriggerableDevice):
             )
         else:
             # On the tick of the clock that fires the trigger:
-            self.initial_trigger_time = self.trigger_device.quantise_to_pseudoclock(t)
+            self.initial_trigger_time = self.trigger_device._round_time(t)
             
     def trigger(self, t, duration, wait_delay = 0):
         """Ask the trigger device to produce a digital pulse of a given duration
@@ -856,18 +856,18 @@ class PseudoclockDevice(TriggerableDevice):
         """
         if isinstance(t, str) and t == "initial":
             t = self.initial_trigger_time
-        # Trigger times are on the ticks of the clock that fires the trigger:
-        clock = self if self.is_master_pseudoclock else self.trigger_device
-        t = clock.quantise_to_pseudoclock(t)
+        # Trigger times are rounded as the triggering clock rounds its own times:
         if self.is_master_pseudoclock:
+            t = self.quantise_to_pseudoclock(t)
             if compiler.wait_monitor is not None:
                 # Make the wait monitor pulse to signify starting or resumption of the
                 # experiment:
                 compiler.wait_monitor.trigger(t, duration)
             self.trigger_times.append(t)
         else:
+            t = self.trigger_device._round_time(t)
             TriggerableDevice.trigger(self, t, duration)
-            self.trigger_times.append(clock.quantise_to_pseudoclock(t + wait_delay))
+            self.trigger_times.append(self.trigger_device._round_time(t + wait_delay))
 
     def do_checks(self, outputs):
         """Basic error checking to ensure the user's instructions make sense.

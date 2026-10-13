@@ -422,7 +422,10 @@ class Output(Device):
         sources = {}
         for t, instruction in self.instructions.items():
             # How much of a delay is there for this instruction? That depends how many triggers there are prior to it:
-            n_triggers_prior = len([time for time in trigger_times if time < t])
+            tick = self.quantise_to_pseudoclock
+            n_triggers_prior = len(
+                [time for time in trigger_times if tick(time) < tick(t)]
+            )
             # The cumulative offset at this point in time:
             offset = self.trigger_delay * n_triggers_prior + trigger_times[0]
             if isinstance(instruction, dict):
@@ -438,20 +441,15 @@ class Output(Device):
 
             new_time = self.quantise_to_pseudoclock(t - offset)
             if new_time in offset_instructions:
-                # As in add_instruction: warn, and keep the later instruction.
-                earlier, later = sorted(
-                    (sources[new_time], t), key=self._requested_times.get
-                )
+                # As in add_instruction: warn, and keep the one added last.
                 if not compiler.suppress_all_warnings:
                     sys.stderr.write(
                         f"WARNING: {self.description} {self.name} has instructions "
-                        f"at t={self._requested_times[earlier]}s and "
-                        f"t={self._requested_times[later]}s, which fall on one tick, "
+                        f"at t={self._requested_times[sources[new_time]]}s and "
+                        f"t={self._requested_times[t]}s, which fall on one tick, "
                         f"t={new_time}s, of {self.pseudoclock_device.name}. Keeping "
-                        "the later.\n"
+                        "the one added last.\n"
                     )
-                if later != t:
-                    continue
             offset_instructions[new_time] = offset_instruction
             sources[new_time] = t
         self.instructions = offset_instructions
@@ -460,7 +458,9 @@ class Output(Device):
         # Pseudoclock/ClockLine so that the times in list are consistent with the ones
         # in self.instructions
         for i, times in enumerate(self.ramp_limits):
-            n_triggers_prior = len([time for time in trigger_times if time < times[0]])
+            n_triggers_prior = len(
+                [time for time in trigger_times if tick(time) < tick(times[0])]
+            )
             # The cumulative offset at this point in time:
             offset = self.trigger_delay * n_triggers_prior + trigger_times[0]
 
