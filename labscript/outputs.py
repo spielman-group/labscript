@@ -455,18 +455,6 @@ class Output(Device):
                         "the earliest output possible after this trigger is at "
                         f"t={trigger_time + self.trigger_delay}"
                     )
-                # Check that there are no instructions too soon before the trigger:
-                if (
-                    t_tick < trigger_tick
-                    and max(self.clock_limit, compiler.wait_delay)
-                    < trigger_tick - t_tick
-                ):
-                    raise LabscriptError(
-                        f"{self.description} {self.name} has an instruction at t={t}. "
-                        f"This is too soon before a trigger at t={trigger_time}, "
-                        "the latest output possible before this trigger is at "
-                        f"t={trigger_time - max(self.clock_limit, compiler.wait_delay)}"
-                    )
 
     def offset_instructions_from_trigger(self, trigger_times):
         """Put every instruction on this output's own clock, by its trigger offset.
