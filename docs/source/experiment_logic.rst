@@ -27,7 +27,7 @@ Waits
 Ending the shot
 ---------------
 
-:py:func:`stop(t) <labscript.labscript.stop>` ends the shot at ``t`` and compiles it. Outputs hold their last values until then. ``t`` must come at least one minimum update interval of each clock line after that clock line's last instruction.
+:py:func:`stop(t) <labscript.labscript.stop>` ends the shot at ``t`` and compiles it. Outputs hold their last values until then. ``t`` must be the time of each clock line's last instruction, or at least one minimum update interval of that clock line after it.
 
 Secondary pseudoclocks
 ----------------------

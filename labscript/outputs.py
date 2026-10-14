@@ -87,8 +87,6 @@ class Output(Device):
         self.instructions = {}
         # The time each instruction was asked for, by the tick it was rounded to:
         self._requested_times = {}
-        # For checking ramps don't overlap:
-        self.ramp_limits = []
         if default_value is not None:
             self.default_value = default_value
         if not unit_conversion_parameters:
@@ -292,16 +290,19 @@ class Output(Device):
                     f"{self.description} {self.name} is on clockline that does not "
                     "support ramping. It cannot have a function ramp as an instruction."
                 )
-            for start, end in self.ramp_limits:
+            # A ramp at this same time is being replaced, so does not count.
+            for start, other in self.instructions.items():
+                if not isinstance(other, dict) or start == time:
+                    continue
+                end = other["end time"]
                 if start < time < end or start < instruction["end time"] < end:
-                    start_value = self.instruction_to_string(self.instructions[start])
+                    start_value = self.instruction_to_string(other)
                     new_value = self.instruction_to_string(instruction)
                     raise LabscriptError(
                         f"State of {self.description} {self.name} from t = {start}s to "
                         f"{end}s has already been set to {start_value}. Cannot set to "
                         f"{new_value} from t = {time}s to {instruction['end time']}s."
                     )
-            self.ramp_limits.append((time, instruction["end time"]))
             if time > instruction["end time"]:
                 raise LabscriptError(
                     f"{self.description} {self.name} has been passed a function ramp "
@@ -333,6 +334,21 @@ class Output(Device):
         if pseudoclock is not None and pseudoclock.is_master_pseudoclock:
             return self.quantise_to_pseudoclock(t)
         return t
+
+    def _trigger_offset(self, t, trigger_times):
+        """The time to subtract from `t` to put it on this output's own clock.
+
+        It is the first trigger time plus a trigger delay for each trigger before `t`.
+        A trigger is before `t` if `t` falls on a later tick of the clock as it ran up
+        to that trigger.
+        """
+        tick = self.quantise_to_pseudoclock
+        offset = trigger_times[0]
+        for trigger_time in sorted(trigger_times):
+            if tick(t - offset) <= tick(trigger_time - offset):
+                break
+            offset += self.trigger_delay
+        return offset
 
     def _add_ramp(
         self, t, duration, performed, description, samplerate, units, function, *args
@@ -380,8 +396,13 @@ class Output(Device):
                 )
             self.add_instruction(self.t0, self.default_value)
         # With no instruction at the initial time, start at the default value.
-        # Compare ticks: a secondary's times are only rounded to them later.
-        tick = self.quantise_to_pseudoclock
+        # Compare ticks of this output's own clock, which a secondary's times are
+        # rounded to only once its trigger offsets are applied.
+        quantise = self.quantise_to_pseudoclock
+
+        def tick(t):
+            return quantise(t - self._trigger_offset(t, trigger_times))
+
         if tick(self.t0) not in {tick(t) for t in self.instructions}:
             if (
                 not compiler.suppress_mild_warnings
@@ -393,12 +414,13 @@ class Output(Device):
                     f"{self.instruction_to_string(self.default_value)}.\n"
                 )
             self.add_instruction(self.t0, self.default_value)
-        # A ramp with no instruction after it holds its final value.
-        ticks = {tick(t) for t in self.instructions}
-        for instruction in list(self.instructions.values()):
+        # A ramp with no instruction after it holds its final value. Of instructions
+        # on one tick, the one added last is kept.
+        kept = {tick(t): instruction for t, instruction in self.instructions.items()}
+        for instruction in kept.values():
             if (
                 isinstance(instruction, dict)
-                and tick(instruction["end time"]) not in ticks
+                and tick(instruction["end time"]) not in kept
             ):
                 self.add_instruction(
                     instruction["end time"],
@@ -406,15 +428,15 @@ class Output(Device):
                     instruction["units"],
                 )
         for trigger_time in trigger_times:
-            trigger_time = tick(trigger_time)
-            delay_end = tick(trigger_time + self.trigger_delay)
+            # Ticks of the clock as it ran up to this trigger:
+            offset = self._trigger_offset(trigger_time, trigger_times)
+            trigger_tick = quantise(trigger_time - offset)
             for t, inst in self.instructions.items():
-                t = tick(t)
+                t_tick = quantise(t - offset)
                 # Check no ramps are happening at the trigger time:
                 if (
                     isinstance(inst, dict)
-                    and tick(inst["initial time"]) < trigger_time
-                    and tick(inst["end time"]) > trigger_time
+                    and t_tick < trigger_tick < quantise(inst["end time"] - offset)
                 ):
                     raise LabscriptError(
                         f"{self.description} {self.name} has a ramp "
@@ -423,17 +445,21 @@ class Output(Device):
                         f"t={trigger_time}, and so cannot be performed."
                     )
                 # Check that nothing is happening during the delay after the trigger:
-                if trigger_time < t < delay_end:
+                if (
+                    trigger_tick < t_tick
+                    and quantise(t - offset - self.trigger_delay) < trigger_tick
+                ):
                     raise LabscriptError(
                         f"{self.description} {self.name} has an instruction at t={t}. "
                         f"This is too soon after a trigger at t={trigger_time}, "
                         "the earliest output possible after this trigger is at "
-                        f"t={delay_end}"
+                        f"t={trigger_time + self.trigger_delay}"
                     )
                 # Check that there are no instructions too soon before the trigger:
                 if (
-                    t < trigger_time
-                    and max(self.clock_limit, compiler.wait_delay) < trigger_time - t
+                    t_tick < trigger_tick
+                    and max(self.clock_limit, compiler.wait_delay)
+                    < trigger_tick - t_tick
                 ):
                     raise LabscriptError(
                         f"{self.description} {self.name} has an instruction at t={t}. "
@@ -443,7 +469,7 @@ class Output(Device):
                     )
 
     def offset_instructions_from_trigger(self, trigger_times):
-        """Subtract `self.trigger_delay` from all instructions at or after each trigger.
+        """Put every instruction on this output's own clock, by its trigger offset.
 
         Parameters
         ----------
@@ -453,12 +479,7 @@ class Output(Device):
         offset_instructions = {}
         sources = {}
         for t, instruction in self.instructions.items():
-            # The delay depends on how many triggers there are prior to the instruction.
-            tick = self.quantise_to_pseudoclock
-            n_triggers_prior = len(
-                [time for time in trigger_times if tick(time) < tick(t)]
-            )
-            offset = self.trigger_delay * n_triggers_prior + trigger_times[0]
+            offset = self._trigger_offset(t, trigger_times)
             if isinstance(instruction, dict):
                 offset_instruction = instruction.copy()
                 offset_instruction["end time"] = self.quantise_to_pseudoclock(
@@ -484,21 +505,6 @@ class Output(Device):
             offset_instructions[new_time] = offset_instruction
             sources[new_time] = t
         self.instructions = offset_instructions
-
-        # Offset each of the ramp_limits, used by Pseudoclock/ClockLine, so that their
-        # times are consistent with the ones in self.instructions.
-        for i, times in enumerate(self.ramp_limits):
-            n_triggers_prior = len(
-                [time for time in trigger_times if tick(time) < tick(times[0])]
-            )
-            offset = self.trigger_delay * n_triggers_prior + trigger_times[0]
-
-            # This assumes ramps cannot proceed across a trigger command (for
-            # instance you cannot ramp an output across a WAIT).
-            self.ramp_limits[i] = (
-                self.quantise_to_pseudoclock(times[0] - offset),
-                self.quantise_to_pseudoclock(times[1] - offset),
-            )
 
     def get_change_times(self):
         """Get the times this output changes state.
@@ -545,7 +551,11 @@ class Output(Device):
         list
             List of (start, stop) times of ramps for this Output.
         """
-        return self.ramp_limits
+        return [
+            (t, instruction["end time"])
+            for t, instruction in self.instructions.items()
+            if isinstance(instruction, dict)
+        ]
 
     def make_timeseries(self, change_times):
         """Make the list of this output's states at each time in `change_times`.

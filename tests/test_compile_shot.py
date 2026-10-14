@@ -146,6 +146,59 @@ class CompileTests(unittest.TestCase):
         with self.assertRaises(labscript.LabscriptError):
             self.compile_the_shot()
 
+    def test_a_secondary_keeps_its_times_on_its_own_ticks(self):
+        # 25 ns ticks offset 13 ns from the master's: the start and the ramp share a
+        # master tick but not their own, and the ramp's end and the constant share
+        # their own. The value 5 ns after the wait at t=2 starts at the resume.
+        secondary = textwrap.dedent(
+            '''
+            from labscript import ClockLine, PseudoclockDevice
+
+            class Secondary(DummyPseudoclock):
+                clock_limit = 1e9
+                trigger_delay = 13e-9
+
+                def __init__(self, name, trigger_device, trigger_connection):
+                    PseudoclockDevice.__init__(
+                        self, name, trigger_device, trigger_connection
+                    )
+                    self._pseudoclock = type(pseudoclock.pseudoclock)(
+                        name=f'{name}_pseudoclock', pseudoclock_device=self,
+                        connection='pseudoclock',
+                    )
+                    self._clock_line = ClockLine(
+                        name=f'{name}_clock_line', pseudoclock=self.pseudoclock,
+                        connection='internal',
+                    )
+
+            class FastDevice(DummyIntermediateDevice):
+                clock_limit = 1e9
+
+            Secondary('secondary', intermediate_device, 'port0/line7')
+            FastDevice(name='fast_device', parent_device=secondary.clockline)
+            AnalogOut(name='fast_out', parent_device=fast_device, connection='ao0')
+            '''
+        )
+        instructions = textwrap.dedent(
+            '''
+            fast_out.ramp(26e-9, duration=986e-9, initial=5, final=1, samplerate=1e7)
+            fast_out.constant(1024e-9, 7)
+            fast_out.constant(2 + 5e-9, 3)
+            '''
+        )
+        shot = SHOT.replace('\nt = 0\n', secondary + '\nt = 0\n')
+        with open(self.script, 'w') as f:
+            f.write(shot.replace('start()\n', 'start()\n' + instructions))
+        self.compile_the_shot()
+
+        with h5py.File(self.run_file, 'r') as f:
+            values = f['devices/fast_device/OUTPUTS']['fast_out']
+        self.assertEqual(values[0], 0, 'starts at the default, before the ramp')
+        self.assertEqual(
+            list(values).count(7), 1, 'kept at the ramp end, until the resume'
+        )
+        self.assertEqual(values[-1], 3)
+
     def test_a_time_marker_refuses_an_invalid_colour(self):
         with self.assertRaises(ValueError):
             labscript.add_time_marker(0, 'marker', color=(300, 0, 0))

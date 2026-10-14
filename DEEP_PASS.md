@@ -622,6 +622,46 @@ and the error paths) and labscript-devices' tests ran (41 passed).
     `outputs.py`, and that tree cannot compile here without the numpy 2 dtype
     fixes, so a port could not be verified.
   - The SpinAPI truncation question went to labscript-devices.
+- **Validation fixes.** A Codex validation found that a secondary's times were
+  compared in absolute ticks, though its own ticks are offset by its triggers.
+  - Faults fixed. Fault 3 was also on `Development`; the others were
+    regressions from this work:
+    1. a value one tick after the start replaced the default start value;
+    2. a value just after a wait missed the trigger's delay, so it resumed a
+       tick late;
+    3. a ramp's end hold, on the user's tick by the secondary's clock but not
+       by the master's, replaced the user's value, the original bug;
+    4. a same-tick replacement kept the replaced ramp's interval, so a later
+       ramp inside it was refused.
+  - The fix: `Output._trigger_offset` gives the offset that puts a time on the
+    output's own clock. A trigger counts when the time is on a later tick of
+    the clock as it ran up to that trigger, which is the tick the secondary's
+    WAIT is written at. `do_checks` and `offset_instructions_from_trigger` both
+    use it. `do_checks` adds a ramp's end hold only for ramps that survive,
+    keeping the one added last on each tick. `ramp_limits` is removed:
+    `get_ramp_times` and the overlap check read the ramps from
+    `self.instructions`. The `stop()` doc now allows `t` at the last
+    instruction.
+  - Behaviour on the master changes only where a ramp is replaced on its own
+    tick. A later ramp inside the replaced one's interval is now accepted, and
+    of two ramps at one start, the one added last is kept in either order.
+  - On a secondary, the "too soon after a trigger" check now compares the
+    secondary's own ticks, and a ramp across a wait is now refused.
+  - Found and recorded in `KNOWN_ISSUES.md`, not fixed: the too-soon-before
+    check never fires; `stop(t)` exactly one interval after the last
+    instruction is refused by float noise; on a secondary, a ramp replaced at a
+    different time on its own tick still blocks a later ramp. Item 5 of the
+    validation, the dependency floors, is separate and still open.
+  - **Checks:** the reproductions fail before and pass after. The 52 test
+    shots and the 9 RbChip sequences (a master PulseBlaster only) compile to
+    identical shot files. Four new secondary cases with waits are also
+    identical: two waits, a PulseBlaster secondary, `set_initial_trigger_time`,
+    and a 41 ns delay. labscript's suite (6) and labscript-devices' (41) pass.
+    One test, which fails on the old code, covers faults 1 to 3.
+  - **Review:** one independent Opus review found fixes 1 to 3 correct at the
+    cause and nothing blocking. Its points are taken: the test comment, a wait
+    assertion, the offset docstring, and the KNOWN_ISSUES line for the
+    secondary case.
 
 ## Step 4: dead code and compatibility leftovers
 
