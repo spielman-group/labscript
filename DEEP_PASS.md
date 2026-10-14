@@ -647,8 +647,15 @@ and the error paths) and labscript-devices' tests ran (41 passed).
     of two ramps at one start, the one added last is kept in either order.
   - On a secondary, the "too soon after a trigger" check now compares the
     secondary's own ticks, and a ramp across a wait is now refused.
-  - Found and recorded in `KNOWN_ISSUES.md`, not fixed: the too-soon-before
-    check never fires; `stop(t)` exactly one interval after the last
+  - The check for an instruction too soon before a trigger is deleted (Ian).
+    It never fired: it compared the gap with `clock_limit`, a frequency, and
+    raised when the gap was larger. Its `1/clock_limit` half is enforced by
+    `collect_change_times`, which counts trigger times as change times. Its
+    `wait_delay` half had no basis: `wait_delay` is the gap from a WAIT to
+    its resume trigger, which `wait()` adds after `t`. Corrected, it would
+    have refused a secondary case whose last instruction is 2.29 µs before a
+    wait. On `UpstreamBugFixes` too.
+  - Found and recorded in `KNOWN_ISSUES.md`, not fixed: `stop(t)` exactly one interval after the last
     instruction is refused by float noise; on a secondary, a ramp replaced at a
     different time on its own tick still blocks a later ramp. Item 5 of the
     validation, the dependency floors, is separate and still open.
