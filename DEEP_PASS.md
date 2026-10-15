@@ -669,6 +669,30 @@ and the error paths) and labscript-devices' tests ran (41 passed).
     cause and nothing blocking. Its points are taken: the test comment, a wait
     assertion, the offset docstring, and the KNOWN_ISSUES line for the
     secondary case.
+- **Re-validation fixes.** A second Codex validation found two faults on a
+  secondary, fixed with Ian's approval:
+  1. of distinct times on one tick, a later call could lose, since a time
+     added again kept its first dict position (f516187). Also on
+     `Development`, and upstream: on `UpstreamBugFixes` as d5f659c;
+  2. a ramp starting on a trigger's tick, such as a ramp at a wait or at the
+     initial trigger, had its end offset without the trigger delay its end
+     hold got, so the two fell on different ticks and compilation failed. A
+     regression; the end now takes its own offset (68b4298).
+  - **Checks:** both reproductions fail before and pass after, and match
+    `Development`'s shot where it compiles them. The 52 test shots, the 9
+    RbChip sequences, the 4 secondary cases and the earlier reproductions
+    compile identically. labscript's suite (6) and labscript-devices' (41)
+    pass; the secondary test now covers both faults and fails without either
+    fix. On `UpstreamBugFixes`, fault 1 was reproduced and fixed with its
+    `'a256'` dtypes patched in a scratch copy only.
+  - **Review:** one Opus review found both fixes correct at the cause and
+    nothing blocking. A ramp at a wait shorter than the trigger delay raises
+    `IndexError`, before and after; recorded in `KNOWN_ISSUES.md`.
+  - **For Ian:** a ramp starting on a trigger's tick keeps its initial time
+    on the pre-trigger offset, so with a 60 ns delay a 200 ns ramp from 0 to
+    1 runs 0.125, 0.375, 0.625, then jumps to 1. `Development` refused these
+    shots. Giving the initial time the end's offset instead would keep the
+    shape and drop the ramp's start.
 
 ## Step 4: dead code and compatibility leftovers
 
