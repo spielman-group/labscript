@@ -150,7 +150,8 @@ class CompileTests(unittest.TestCase):
         # 25 ns ticks offset 13 ns from the master's: the start and the ramp share a
         # master tick but not their own, and the ramp's end and the constants share
         # their own, where the last call wins. A ramp at a wait starts at its resume,
-        # and the value 5 ns after the wait at t=2 starts at the resume.
+        # and the value 5 ns after the wait at t=2 starts at the resume. The ramp at
+        # t=1.5 samples on every tick, and its ticks overrun its requested end.
         secondary = textwrap.dedent(
             '''
             from labscript import ClockLine, PseudoclockDevice
@@ -188,6 +189,9 @@ class CompileTests(unittest.TestCase):
             fast_out.constant(1024e-9, 7)
             wait('b wait', 0.5)
             fast_out.ramp(0.5, duration=1005e-9, initial=1, final=2, samplerate=1e7)
+            fast_out.ramp(
+                1.5 + 10e-9, duration=1005e-9, initial=10, final=20, samplerate=1e9
+            )
             fast_out.constant(2 + 5e-9, 3)
             '''
         )
@@ -204,12 +208,14 @@ class CompileTests(unittest.TestCase):
             list(values).count(7), 1, 'kept at the ramp end, until the resume'
         )
         self.assertEqual(values[-1], 3)
+        self.assertEqual(max(values), 20, 'no ramp value passes its final value')
 
         # A ramp on the wait's tick but before its resume would run in the delay, and
         # one shorter than a tick cannot be sampled within it:
         for old, new in [
             ('ramp(0.5,', 'ramp(0.5 - 20e-9,'),
             ('duration=1005e-9', 'duration=10e-9'),
+            ('duration=1005e-9', 'duration=0'),
         ]:
             with open(self.script, 'w') as f:
                 f.write(script.replace(old, new))

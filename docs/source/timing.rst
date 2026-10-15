@@ -12,7 +12,7 @@ Ramps
 
 A ramp is sampled from its start up to, but not including, its end. The end belongs to the next instruction on that output. If no instruction falls on the end's tick, labscript adds one there that holds the ramp's final value.
 
-The sample period is rounded to a whole number of ticks, and the last step is shortened or lengthened so that the next instruction lands on time. A ramp can therefore hold a few more or fewer samples than ``samplerate`` × ``duration``. Each value is computed at the midpoint of the sample the hardware plays.
+The sample period is rounded to a whole number of ticks, at least one, and the last step is shortened or lengthened so that the next instruction lands on time. A ramp can therefore hold a few more or fewer samples than ``samplerate`` × ``duration``. Each value is computed at the midpoint of the sample the hardware plays, measured from the ramp's start tick. The ramp keeps the duration it was given, so its ticks can run past its end by up to a tick; a sample whose midpoint is past the end holds the final value.
 
 Two instructions in one tick
 ----------------------------

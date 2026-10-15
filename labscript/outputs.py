@@ -377,10 +377,13 @@ class Output(Device):
         # Durations measured from the rounded start, on the same scale as the
         # sample times the function is evaluated at, so that their errors cancel:
         start = self._round_time(t)
+        duration = (start + duration) - start
         self.add_instruction(
             t,
             {
-                "function": function((start + duration) - start, *args),
+                # add_instruction refuses a zero-length ramp, whose function may
+                # divide by its duration:
+                "function": function(duration, *args) if duration else None,
                 "description": description,
                 "initial time": t,
                 "end time": t + performed,
@@ -623,11 +626,14 @@ class Output(Device):
                         else all_times[i + 1]
                     )
                     midpoints[-1] = time[-1] + 0.5 * (next_time - time[-1])
-                    # These are differences of absolute float times, so values carry
-                    # float noise in their last bit, either way. Counting each sample's
-                    # time in the ramp in whole ticks would make them exact.
+                    # A sample past the ramp's requested end, which its ticks can
+                    # overrun, holds the final value. Times are differences of absolute
+                    # floats, so values carry float noise in their last bit:
                     outarray = self.timeseries[i]["function"](
-                        midpoints - self.timeseries[i]["initial time"]
+                        np.minimum(
+                            midpoints - self.timeseries[i]["initial time"],
+                            self.timeseries[i]["span"],
+                        )
                     )
                     if self.timeseries[i]["units"] is not None:
                         outarray = self.apply_calibration(
