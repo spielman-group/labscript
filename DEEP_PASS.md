@@ -745,6 +745,39 @@ and the error paths) and labscript-devices' tests ran (41 passed).
     whose shortest step is under two ticks; a sample period under half a tick
     raises `ZeroDivisionError`; so does a zero-duration linear ramp, when it
     is built.
+- **Design review** (Ian: step back before more ramp fixes). `DESIGN_REVIEW.md`
+  (a79b79d) maps every rounding, offset and comparison of a time, traces 16 of
+  the 19 timing faults to mismatches between four representations of time,
+  and proposes one integer-tick model. Ian chose to ship the three open fixes
+  in place now and plan the rewrite separately
+  (`issues/labscript_timing_rewrite.md` in the meta repo).
+- **The three open ramp faults, fixed in place** (Ian). A ramp keeps its
+  requested duration, and samples past it hold the final value:
+  1. sample times are clamped to the ramp's requested duration, so no value
+     passes the final one. The 25.2 ns case now outputs 0.496, 1, 1, and a
+     1000.2 ns ramp from 0 to 1 tops at 1.0 rather than 1.0123 (7c42fab);
+  2. the sample period is at least one tick, so a rate over twice the tick
+     rate samples every tick, or gets the clock-limit `LabscriptError`, not
+     `ZeroDivisionError` (16f1e84; on `UpstreamBugFixes` as 0290874);
+  3. a ramp of zero duration has no function built, so a zero-length ramp
+     of any type gets `add_instruction`'s sub-tick error (7c42fab).
+  - **Checks:** the 52 test shots, `example.py`, the 9 RbChip sequences, the
+    4 secondary cases and the earlier reproductions compile to identical shot
+    files: none of their ramps has a sample past its requested end. The
+    secondary test gains a ramp on a 1 GHz secondary sampled every tick whose
+    ticks overrun its end, and a zero-length ramp; it fails without each fix.
+    labscript's suite (6) and labscript-devices' (41) pass. On
+    `UpstreamBugFixes` the period fix turns the `ZeroDivisionError` of two
+    cases into a compile and a clock-limit error.
+  - Fixes 1 and 3 rest on `_add_ramp`, the ramp's `span` and the sub-tick
+    refusal, which upstream lacks, so they do not go to `UpstreamBugFixes`;
+    upstream has both faults.
+  - **Review:** one Opus review found the clamp and the floor right at the
+    cause, the clamp also fixing a pulse sequence's last sample, and one
+    regression, now fixed: building the function after `add_instruction`
+    left a ramp with no function stored when a builder raised inside a
+    script's `try`. The revision was reviewed again and compiles the 52
+    shots, RbChip and secondary cases identically.
 
 ## Step 4: dead code and compatibility leftovers
 
