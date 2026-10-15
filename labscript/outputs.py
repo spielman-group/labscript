@@ -250,6 +250,7 @@ class Output(Device):
         requested = time
         time = self._round_time(time)
         if isinstance(instruction, dict):
+            requested_end = instruction["end time"]
             for key in ("end time", "initial time"):
                 instruction[key] = self._round_time(instruction[key])
         # Check that time is not negative or too soon after t=0:
@@ -308,6 +309,21 @@ class Output(Device):
                     f"{self.description} {self.name} has been passed a function ramp "
                     f"{self.instruction_to_string(instruction)} with a negative "
                     "duration."
+                )
+            # A ramp shorter than a tick, or whose ends round to one tick, cannot be
+            # sampled. Requested times are compared, so that float noise does not
+            # refuse a ramp exactly one tick long.
+            resolution = self.pseudoclock_device.clock_resolution
+            if (
+                requested_end < requested + resolution
+                or time == instruction["end time"]
+            ):
+                raise LabscriptError(
+                    f"{self.description} {self.name} has a ramp "
+                    f"{instruction['description']} at t={requested}s lasting "
+                    f"{requested_end - requested:g}s, which does not span a tick "
+                    f"({resolution}s) of {self.pseudoclock_device.name}. Make it "
+                    "longer than one tick."
                 )
             if instruction["clock rate"] == 0:
                 raise LabscriptError("A nonzero sample rate is required.")
