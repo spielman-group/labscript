@@ -447,9 +447,13 @@ class Output(Device):
                         f"{inst['end time']}. This overlaps with a trigger at "
                         f"t={trigger_time}, and so cannot be performed."
                     )
-                # Check that nothing is happening during the delay after the trigger:
+                # Check that nothing is happening during the delay after the trigger.
+                # A ramp on the trigger's own tick runs after it, so is checked too:
                 if (
-                    trigger_tick < t_tick
+                    (
+                        trigger_tick < t_tick
+                        or isinstance(inst, dict) and t_tick == trigger_tick
+                    )
                     and quantise(t - offset - self.trigger_delay) < trigger_tick
                 ):
                     raise LabscriptError(

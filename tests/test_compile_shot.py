@@ -192,8 +192,9 @@ class CompileTests(unittest.TestCase):
             '''
         )
         shot = SHOT.replace('\nt = 0\n', secondary + '\nt = 0\n')
+        script = shot.replace('start()\n', 'start()\n' + instructions)
         with open(self.script, 'w') as f:
-            f.write(shot.replace('start()\n', 'start()\n' + instructions))
+            f.write(script)
         self.compile_the_shot()
 
         with h5py.File(self.run_file, 'r') as f:
@@ -203,6 +204,14 @@ class CompileTests(unittest.TestCase):
             list(values).count(7), 1, 'kept at the ramp end, until the resume'
         )
         self.assertEqual(values[-1], 3)
+
+        # A ramp on the wait's tick but before its resume would run in the delay:
+        with open(self.script, 'w') as f:
+            f.write(script.replace('ramp(0.5,', 'ramp(0.5 - 20e-9,'))
+        with h5py.File(self.run_file, 'w') as f:
+            f.create_group('globals')
+        with self.assertRaises(labscript.LabscriptError):
+            self.compile_the_shot()
 
     def test_a_time_marker_refuses_an_invalid_colour(self):
         with self.assertRaises(ValueError):
