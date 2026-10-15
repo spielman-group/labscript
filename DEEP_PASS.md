@@ -693,6 +693,29 @@ and the error paths) and labscript-devices' tests ran (41 passed).
     1 runs 0.125, 0.375, 0.625, then jumps to 1. `Development` refused these
     shots. Giving the initial time the end's offset instead would keep the
     shape and drop the ramp's start.
+- **Ramps on a trigger's tick** (Ian: refuse them). On a secondary, a ramp
+  starting on a trigger's tick whose start, less the trigger delay, falls
+  before that tick now gets the "too soon after a trigger" `LabscriptError`,
+  the tick-based check a constant gets. This also refuses a ramp at a wait
+  shorter than the trigger delay, which raised `IndexError`; its
+  `KNOWN_ISSUES.md` line is deleted. A constant on the trigger's tick, and a
+  ramp whose start less the delay rounds to it, such as one at a wait's
+  resume, are still accepted.
+  - **Checks:** the five ramps on a 60 ns-delay wait's tick that compiled
+    skewed, and the one that raised `IndexError`, now raise this error;
+    `Development` refused them all, that one with this error and the rest as
+    a collision or a trigger overlap. The 52 test shots, the 9 RbChip sequences, the 4 secondary cases
+    and the earlier reproductions compile identically, as does a ramp at a
+    wait on the master. labscript's suite (6) and labscript-devices' (41)
+    pass; the secondary test now also refuses such a ramp and fails without
+    the fix. Upstream's `do_checks` is `Development`'s, so nothing goes to
+    `UpstreamBugFixes`.
+  - **Review:** one Opus review, 25 further cases, found the condition right
+    at the cause and nothing blocking. Of a ramp and a constant on one
+    trigger tick, the ramp is now refused rather than dropped, as constants
+    there already were. Two faults of ramps shorter than a tick, on the
+    master and on secondaries, older than this fix, are recorded in
+    `KNOWN_ISSUES.md`: an `IndexError`, and values past the ramp's end.
 
 ## Step 4: dead code and compatibility leftovers
 
