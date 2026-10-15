@@ -321,6 +321,9 @@ class Output(Device):
                         f"{self.name} as it falls outside the limits "
                         f"({self.limits[0]} to {self.limits[1]})"
                     )
+        # Re-insert, so that dict order is call order: of instructions on
+        # one secondary tick, the one added last is kept.
+        self.instructions.pop(time, None)
         self.instructions[time] = instruction
         self._requested_times[time] = requested
 
