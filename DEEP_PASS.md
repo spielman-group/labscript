@@ -716,6 +716,35 @@ and the error paths) and labscript-devices' tests ran (41 passed).
     there already were. Two faults of ramps shorter than a tick, on the
     master and on secondaries, older than this fix, are recorded in
     `KNOWN_ISSUES.md`: an `IndexError`, and values past the ramp's end.
+- **Ramps shorter than a tick** (Ian: refuse them). `Output.add_instruction`
+  refuses a ramp, or a digital pulse sequence, that is shorter than one tick
+  of its pseudoclock, or whose ends round to one tick, on the master and on
+  secondaries, with a `LabscriptError` naming the ramp, its duration and the
+  tick. A truncated ramp is judged on the part performed. Requested times are
+  compared, so a ramp exactly one tick long is kept, except on the master
+  where both ends round to one tick by numpy's half-to-even rounding (a 5 ns
+  ramp at 5007.5 ns on 5 ns ticks). Both `KNOWN_ISSUES.md` lines are deleted:
+  such ramps raised `IndexError` where their ends rounded to one tick, or ran
+  past their final value where the span was stretched to a tick (a 10 ns ramp
+  at a wait, followed by a constant 2 µs later, output 5 to 195 rather than
+  0 to 1).
+  - **Checks:** the ten sub-tick cases, eight that raised `IndexError` and
+    two that compiled past their final value, and three one-tick ramps on a
+    half-tick tie, now raise this error. The 52 test shots, the 9 RbChip
+    sequences, the 4 secondary cases and the earlier reproductions otherwise
+    compile identically, as do 40 ramps exactly one tick long at off-tick
+    times, negative durations and an output with no pseudoclock. labscript's
+    suite (6) and labscript-devices' (41) pass; the secondary test now also
+    refuses a 10 ns ramp and fails without the fix. `UpstreamBugFixes`
+    compiles these ramps without an `IndexError`, so nothing goes there.
+  - **Review:** one Opus review, with about 2,000 secondary ramps of 25 to
+    50 ns around a wait, found the half-tick tie on the master, now refused,
+    and an output with no pseudoclock losing its error, now kept.
+  - **Found, in `KNOWN_ISSUES.md`, all also upstream:** a ramp of a tick or
+    more whose ends round outward can still pass its final value on a clock
+    whose shortest step is under two ticks; a sample period under half a tick
+    raises `ZeroDivisionError`; so does a zero-duration linear ramp, when it
+    is built.
 
 ## Step 4: dead code and compatibility leftovers
 
