@@ -148,8 +148,9 @@ class CompileTests(unittest.TestCase):
 
     def test_a_secondary_keeps_its_times_on_its_own_ticks(self):
         # 25 ns ticks offset 13 ns from the master's: the start and the ramp share a
-        # master tick but not their own, and the ramp's end and the constant share
-        # their own. The value 5 ns after the wait at t=2 starts at the resume.
+        # master tick but not their own, and the ramp's end and the constants share
+        # their own, where the last call wins. A ramp at a wait starts at its resume,
+        # and the value 5 ns after the wait at t=2 starts at the resume.
         secondary = textwrap.dedent(
             '''
             from labscript import ClockLine, PseudoclockDevice
@@ -182,7 +183,11 @@ class CompileTests(unittest.TestCase):
         instructions = textwrap.dedent(
             '''
             fast_out.ramp(26e-9, duration=986e-9, initial=5, final=1, samplerate=1e7)
+            fast_out.constant(1024e-9, 6)
+            fast_out.constant(1023e-9, 5)
             fast_out.constant(1024e-9, 7)
+            wait('b wait', 0.5)
+            fast_out.ramp(0.5, duration=1005e-9, initial=1, final=2, samplerate=1e7)
             fast_out.constant(2 + 5e-9, 3)
             '''
         )

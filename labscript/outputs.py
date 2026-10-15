@@ -473,8 +473,11 @@ class Output(Device):
             offset = self._trigger_offset(t, trigger_times)
             if isinstance(instruction, dict):
                 offset_instruction = instruction.copy()
+                # A ramp starting on a trigger's tick runs after the trigger, so its
+                # end takes its own offset, as its end hold does.
+                end = instruction["end time"]
                 offset_instruction["end time"] = self.quantise_to_pseudoclock(
-                    instruction["end time"] - offset
+                    end - self._trigger_offset(end, trigger_times)
                 )
                 offset_instruction["initial time"] = self.quantise_to_pseudoclock(
                     instruction["initial time"] - offset
