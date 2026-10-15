@@ -412,7 +412,9 @@ class Pseudoclock(Device):
                 # round to the nearest clock rate the pseudoclock can actually support
                 period = 1/maxrate
                 quantised_period = period/self.clock_resolution
-                quantised_period = round(quantised_period)
+                # At least one tick; the clock limit check below refuses it if
+                # that is too fast:
+                quantised_period = max(1, round(quantised_period))
                 period = quantised_period*self.clock_resolution
                 maxrate = 1/period
             if maxrate > local_clock_limit:
