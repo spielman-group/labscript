@@ -237,7 +237,7 @@ The candidates came from the librarian, whose two subagents read every copy at
 
 #### 11. Pseudoclock devices write `is_master_pseudoclock` and `stop_time` themselves
 
-The agreed plan, to be built in a later session. Nothing is changed yet.
+The agreed plan (Ian).
 
 - The problem: BLACS, runviewer and the device workers need two timing facts
   about every pseudoclock device, both of which labscript computes:
@@ -311,7 +311,12 @@ The agreed plan, to be built in a later session. Nothing is changed yet.
   removed from labscript-devices.
 - Other owners: labscript-devices (step 5); blacs, if the open point is taken
   up.
-- **Outcome:** Planned, as above (Ian). Not yet built.
+- **Outcome:** Done: labscript 73af05d, with a test. The docs are the
+  `PseudoclockDevice` docstring, since the device-writing guide is
+  labscript-devices' `adding_devices.rst`. The open point is answered by the
+  end-of-shot wait Ian approved (option c), built in labscript-devices; for it
+  pseudoclock devices default to `stop_order` -1, with a test.
+  labscript-devices deletes the six copies (step 5).
 
 #### 12. The connection table's layout is spelled out by its writer and readers
 
