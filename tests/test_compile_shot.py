@@ -133,6 +133,38 @@ class CompileTests(unittest.TestCase):
             properties_ = properties.get(f, 'pseudoclock', 'device_properties')
         self.assertEqual(properties_['stop_time'], 3)
 
+    def test_pseudoclocks_stop_before_other_devices(self):
+        # BLACS stops the lowest stop_order first, and a pseudoclock's worker waits
+        # for its program to end, so no device stops while one is still running.
+        import labscript_utils.properties as properties
+
+        self.compile_the_shot()
+
+        with h5py.File(self.run_file, 'r') as f:
+            pseudoclock, other = (
+                properties.get(f, name, 'device_properties')['stop_order']
+                for name in ('pseudoclock', 'intermediate_device')
+            )
+        self.assertLess(pseudoclock, other)
+
+    def test_a_pseudoclock_device_may_not_record_its_own_stop_time(self):
+        own_stop_time = textwrap.dedent(
+            '''
+            class OwnStopTime(DummyPseudoclock):
+                def generate_code(self, hdf5_file):
+                    super().generate_code(hdf5_file)
+                    self.set_property(
+                        'stop_time', self.stop_time, location='device_properties'
+                    )
+
+            OwnStopTime(name='pseudoclock')
+            '''
+        )
+        with open(self.script, 'w') as f:
+            f.write(SHOT.replace("DummyPseudoclock(name='pseudoclock')\n", own_stop_time))
+        with self.assertRaisesRegex(labscript.LabscriptError, 'labscript records'):
+            self.compile_the_shot()
+
     def test_an_instruction_inside_a_later_ramp_is_refused(self):
         ramps = textwrap.dedent(
             '''

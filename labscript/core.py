@@ -736,7 +736,12 @@ class TriggerableDevice(Device):
 
 
 class PseudoclockDevice(TriggerableDevice):
-    """Device that implements a pseudoclock."""
+    """Device that implements a pseudoclock.
+
+    labscript records the device properties `is_master_pseudoclock` and
+    `stop_time`, the end of the device's program in its own time base, for every
+    pseudoclock device. A subclass must not set them itself.
+    """
 
     description = "Generic Pseudoclock Device"
     allowed_children = [Pseudoclock]
@@ -928,10 +933,28 @@ class PseudoclockDevice(TriggerableDevice):
         self.trigger_times = self.quantise_to_pseudoclock(self.trigger_times)
         self.stop_time = self.quantise_to_pseudoclock(self.stop_time)
 
+    def set_property(self, name, value, location=None, overwrite=False):
+        reserved = name in ('is_master_pseudoclock', 'stop_time')
+        if reserved and location == 'device_properties':
+            if name in getattr(self, '_properties', {}).get(location, ()):
+                raise LabscriptError(
+                    f"{type(self).__name__} sets the device property {name}, which "
+                    "labscript records for every pseudoclock device. Delete the "
+                    "set_property call that sets it; see the PseudoclockDevice "
+                    "documentation."
+                )
+        super().set_property(name, value, location, overwrite)
+
     def generate_code(self, hdf5_file):
         outputs = self.get_all_outputs()
         self.do_checks(outputs)
         self.offset_instructions_from_trigger(outputs)
+        self.set_property(
+            'is_master_pseudoclock',
+            self.is_master_pseudoclock,
+            location='device_properties',
+        )
+        self.set_property('stop_time', self.stop_time, location='device_properties')
         # TriggerableDevice.generate_code would call do_checks() without the outputs
         # this class's do_checks needs.
         Device.generate_code(self, hdf5_file)

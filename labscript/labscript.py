@@ -465,14 +465,15 @@ def write_device_properties(hdf5_file):
         device_properties = device._properties["device_properties"]
 
         # start_order and stop_order become device_properties only if the device
-        # has a BLACS_connection; None means the default order, zero. An order on
-        # a device without a BLACS_connection is an error.
+        # has a BLACS_connection, and are an error otherwise. The default is zero,
+        # but pseudoclock devices stop first, so BLACS stops no other device while
+        # one is still running its program.
         for attr_name in ['start_order', 'stop_order']:
             attr = getattr(device, attr_name)
             if hasattr(device, 'BLACS_connection'):
                 if attr is None:
-                    # Default:
-                    attr = 0
+                    pseudoclock = isinstance(device, PseudoclockDevice)
+                    attr = -1 if attr_name == 'stop_order' and pseudoclock else 0
                 device_properties[attr_name] = attr
             elif attr is not None:
                 msg = (

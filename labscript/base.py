@@ -98,7 +98,8 @@ class Device:
         start_order : int, optional
             Priority when starting, sorted with all devices.
         stop_order : int, optional
-            Priority when stopping, sorted with all devices.
+            Priority when stopping, sorted with all devices; lowest stops first.
+            The default is 0, or -1 for a pseudoclock device.
         **kwargs
             Other options to pass to parent.
         """
