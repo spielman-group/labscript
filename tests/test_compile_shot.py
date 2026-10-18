@@ -167,6 +167,27 @@ class CompileTests(unittest.TestCase):
         with self.assertRaisesRegex(labscript.LabscriptError, 'can drive only 1'):
             self.compile_the_shot()
 
+    def test_a_pseudoclock_device_can_time_its_own_waits(self):
+        own_waits = textwrap.dedent(
+            '''
+            from labscript import Pseudoclock, WaitMonitor, internal_wait_monitor_outputs
+
+            class OwnWaits(DummyPseudoclock):
+                allowed_children = [Pseudoclock]
+                max_pseudoclocks = None
+
+            OwnWaits(name='pseudoclock')
+            outputs = internal_wait_monitor_outputs(pseudoclock)
+            WaitMonitor(
+                'wait_monitor', outputs, 'internal', outputs, 'internal', outputs,
+                'internal',
+            )
+            '''
+        )
+        with open(self.script, 'w') as f:
+            f.write(SHOT.replace("DummyPseudoclock(name='pseudoclock')\n", own_waits))
+        self.compile_the_shot()
+
     def test_a_pseudoclock_device_may_not_record_its_own_stop_time(self):
         own_stop_time = textwrap.dedent(
             '''

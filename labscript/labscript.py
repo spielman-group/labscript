@@ -204,6 +204,52 @@ class WaitMonitor(Trigger):
         self.timeout_trigger_type = timeout_trigger_type
 
 
+class _InternalWaitMonitorDevice:
+    """A link in the chain that gives a pseudoclock device's own wait monitor a
+    parent; it takes one child of its allowed type, and generates no code."""
+
+    def add_device(self, device):
+        if self.child_devices or not isinstance(device, tuple(self.allowed_children)):
+            raise LabscriptError(
+                f"{device.name} cannot be attached to {self.name}, which "
+                f"{self.pseudoclock_device.name} uses internally for its wait monitor."
+            )
+        super().add_device(device)
+
+    def generate_code(self, hdf5_file):
+        pass
+
+
+class _InternalWaitMonitorOutputs(_InternalWaitMonitorDevice, IntermediateDevice):
+    allowed_children = [WaitMonitor]
+
+
+class _InternalWaitMonitorClockLine(_InternalWaitMonitorDevice, ClockLine):
+    allowed_children = [_InternalWaitMonitorOutputs]
+
+
+class _InternalWaitMonitorPseudoclock(_InternalWaitMonitorDevice, Pseudoclock):
+    allowed_children = [_InternalWaitMonitorClockLine]
+
+
+def internal_wait_monitor_outputs(pseudoclock_device):
+    """Return a new device to give `WaitMonitor` as its parent, acquisition and
+    timeout device, for a pseudoclock device that times its own waits.
+
+    It hangs from a pseudoclock and clock line of its own; none generates code.
+    """
+    name = pseudoclock_device.name
+    pseudoclock = _InternalWaitMonitorPseudoclock(
+        f'{name}__dummy_wait_pseudoclock', pseudoclock_device, '_'
+    )
+    clock_line = _InternalWaitMonitorClockLine(
+        f'{name}__dummy_wait_clock_line', pseudoclock, '_'
+    )
+    return _InternalWaitMonitorOutputs(
+        f'{name}_internal_wait_monitor_outputs', clock_line
+    )
+
+
 def save_time_markers(hdf5_file):
     """Save shot time markers to the shot file.
 
