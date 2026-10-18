@@ -188,6 +188,45 @@ class CompileTests(unittest.TestCase):
             f.write(SHOT.replace("DummyPseudoclock(name='pseudoclock')\n", own_waits))
         self.compile_the_shot()
 
+    def test_a_slow_device_on_a_secondary_takes_commands_after_start_and_wait(self):
+        # The delays start() and wait() return are the earliest a script may
+        # command any device, including one on a secondary's slow clock line.
+        script = textwrap.dedent(
+            '''
+            from labscript import start, stop, wait, DigitalOut, DDS
+            from labscript_devices.DummyPseudoclock.labscript_devices import (
+                DummyPseudoclock,
+            )
+            from labscript_devices.DummyIntermediateDevice import (
+                DummyIntermediateDevice,
+            )
+            from labscript_devices.PineBlaster import PineBlaster
+            from labscript_devices.NovaTechDDS9M import NovaTechDDS9M
+
+            DummyPseudoclock(name='pseudoclock')
+            DummyIntermediateDevice(
+                name='intermediate_device', parent_device=pseudoclock.clockline
+            )
+            DigitalOut(
+                name='pine_out', parent_device=intermediate_device,
+                connection='port0/line0',
+            )
+            PineBlaster(name='pine', trigger_device=pine_out, trigger_connection='t')
+            NovaTechDDS9M(name='novatech', parent_device=pine.clockline, com_port='C')
+            DDS(name='dds', parent_device=novatech, connection='channel 0')
+
+            t = start()
+            dds.setfreq(t, 10)
+            t += 1
+            t += wait('a wait', t)
+            dds.setfreq(t, 20)
+            stop(t + 1)
+            '''
+        )
+        with open(self.script, 'w') as f:
+            f.write(script)
+        self.compile_the_shot()
+
     def test_a_pseudoclock_device_may_not_record_its_own_stop_time(self):
         own_stop_time = textwrap.dedent(
             '''

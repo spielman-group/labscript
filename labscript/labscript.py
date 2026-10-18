@@ -623,16 +623,26 @@ def trigger_all_pseudoclocks(t='initial'):
         wait_delay = 0
     for pseudoclock in compiler.all_pseudoclocks:
         pseudoclock.trigger(t, compiler.trigger_duration)
-    # Devices on the master clock can be commanded immediately, but after this long
-    # all devices can receive instructions.
-    max_delay_time = max(
-        [
-            pseudoclock.trigger_delay
-            for pseudoclock in compiler.all_pseudoclocks
-            if not pseudoclock.is_master_pseudoclock
-        ],
-        default=0,
-    )
+    # A secondary takes instructions once its trigger delay has passed and its
+    # slowest clock line can tick again after the tick it makes at the trigger. The
+    # interval is counted in whole ticks past it, so that rounding cannot shorten it.
+    max_delay_time = 0
+    for pseudoclock in compiler.all_pseudoclocks:
+        if pseudoclock.is_master_pseudoclock:
+            continue
+        interval = max(
+            [
+                1.0 / clockline.clock_limit
+                for child in pseudoclock.child_devices
+                for clockline in child.child_devices
+            ],
+            default=0,
+        )
+        ticks = int(interval / pseudoclock.clock_resolution) + 1
+        max_delay_time = max(
+            max_delay_time,
+            pseudoclock.trigger_delay + ticks * pseudoclock.clock_resolution,
+        )
     # The trigger duration and the clock limit of the master clock can also limit
     # when devices can next be given instructions: take the longest 1.0/clock_limit
     # of every clockline on every pseudoclock of the master pseudoclock.
