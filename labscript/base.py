@@ -405,7 +405,7 @@ class Device:
             times = np.array(times)
         resolution = self.pseudoclock_device.clock_resolution
         times = (times / resolution).round()
-        times = times.astype(int) if ticks else times * resolution
+        times = times.astype(np.int64) if ticks else times * resolution
 
         if convert_back_to is not None:
             times = convert_back_to(times)

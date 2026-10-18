@@ -2079,7 +2079,9 @@ class _DDSBase(Device):
             )
         self.gate.go_low(t)
 
-    def quantise_channel(self, channel, scale, limits=None, period=None, dtype=int):
+    def quantise_channel(
+        self, channel, scale, limits=None, period=None, dtype=np.int64
+    ):
         """Return a channel's output in its device's integer units, and the scale.
 
         For device classes, in `generate_code`.
