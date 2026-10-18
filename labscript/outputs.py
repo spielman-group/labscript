@@ -2079,6 +2079,45 @@ class _DDSBase(Device):
             )
         self.gate.go_low(t)
 
+    def quantise_channel(self, channel, scale, limits=None, period=None, dtype=int):
+        """Return a channel's output in its device's integer units, and the scale.
+
+        For device classes, in `generate_code`.
+
+        Parameters
+        ----------
+        channel : str
+            `'frequency'`, `'amplitude'` or `'phase'`.
+        scale : float
+            Device units per unit of the channel's output, such as 10 for 0.1 Hz.
+        limits : tuple of float, optional
+            The device's `(minimum, maximum)`, in the channel's units. A value
+            outside them raises `LabscriptError`.
+        period : float, optional
+            Wrap values into `[0, period)` first, such as 360 for a phase.
+        dtype : optional
+            The integer type of the result.
+
+        Returns
+        -------
+        tuple
+            The values, scaled and rounded, as an array of `dtype`, and `scale`:
+            the channel's new `raw_output` and `scale_factor`.
+        """
+        values = np.asarray(getattr(self, channel).raw_output, dtype=float)
+        if period is not None:
+            values = values % period
+        if limits is not None:
+            low, high = limits
+            outside = (values < low) | (values > high)
+            if np.any(outside):
+                raise LabscriptError(
+                    f"{self.description} {self.name} has a {channel} of "
+                    f"{values[outside][0]}, outside {low} to {high}, the limits of "
+                    f"{self.parent_device.name}."
+                )
+        return np.floor(scale * values + 0.5).astype(dtype), scale
+
 
 class DDSQuantity(_DDSBase):
     """Used to define a DDS output.

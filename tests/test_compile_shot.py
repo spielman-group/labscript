@@ -227,6 +227,28 @@ class CompileTests(unittest.TestCase):
             f.write(script)
         self.compile_the_shot()
 
+    def test_a_dds_value_outside_its_device_limits_is_refused(self):
+        dds = textwrap.dedent(
+            '''
+            from labscript import DDS
+
+            class DDSDevice(DummyIntermediateDevice):
+                allowed_children = [DDS]
+
+                def generate_code(self, hdf5_file):
+                    for output in self.child_devices:
+                        output.quantise_channel('frequency', 10, limits=(0.1, 171e6))
+
+            DDSDevice(name='dds_device', parent_device=pseudoclock.clockline)
+            DDS(name='dds', parent_device=dds_device, connection='channel 0')
+            '''
+        )
+        with open(self.script, 'w') as f:
+            script = SHOT.replace('t = 0\n', dds + 't = 0\n')
+            f.write(script.replace('start()\n', 'start()\ndds.setfreq(1, 200e6)\n'))
+        with self.assertRaisesRegex(labscript.LabscriptError, 'DDS dds has a frequency'):
+            self.compile_the_shot()
+
     def test_a_pseudoclock_device_may_not_record_its_own_stop_time(self):
         own_stop_time = textwrap.dedent(
             '''
