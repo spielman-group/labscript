@@ -27,13 +27,6 @@ import labscript_utils.h5_lock, h5py
 import labscript_utils.properties
 from labscript_utils.filewatcher import FileWatcher
 
-# This imports the default Qt library that other labscript suite code will
-# import as well, since it all uses qtutils. By having a Qt library already
-# imported, we ensure matplotlib (imported by pylab) will notice this and use
-# the same Qt library and API version, and therefore not conflict with any
-# other code is using:
-import qtutils
-
 from pylab import *
 # numpy's deprecated core alias, which would otherwise replace labscript.core
 # in the package's namespace through `from labscript.labscript import *`:
