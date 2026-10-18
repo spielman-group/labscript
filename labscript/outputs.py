@@ -2109,7 +2109,7 @@ class _DDSBase(Device):
             values = values % period
         if limits is not None:
             low, high = limits
-            outside = (values < low) | (values > high)
+            outside = ~((values >= low) & (values <= high))
             if np.any(outside):
                 raise LabscriptError(
                     f"{self.description} {self.name} has a {channel} of "

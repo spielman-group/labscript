@@ -624,8 +624,9 @@ def trigger_all_pseudoclocks(t='initial'):
     for pseudoclock in compiler.all_pseudoclocks:
         pseudoclock.trigger(t, compiler.trigger_duration)
     # A secondary takes instructions once its trigger delay has passed and its
-    # slowest clock line can tick again after the tick it makes at the trigger. The
-    # interval is counted in whole ticks past it, so that rounding cannot shorten it.
+    # slowest clock line can tick again after the tick it makes at the trigger. Whole
+    # ticks are counted past that interval, with room for the triggering clock's
+    # rounding of the trigger and this clock's rounding of the command.
     max_delay_time = 0
     for pseudoclock in compiler.all_pseudoclocks:
         if pseudoclock.is_master_pseudoclock:
@@ -638,7 +639,8 @@ def trigger_all_pseudoclocks(t='initial'):
             ],
             default=0,
         )
-        ticks = int(interval / pseudoclock.clock_resolution) + 1
+        trigger_resolution = compiler.master_pseudoclock.clock_resolution
+        ticks = int((interval + trigger_resolution) / pseudoclock.clock_resolution) + 2
         max_delay_time = max(
             max_delay_time,
             pseudoclock.trigger_delay + ticks * pseudoclock.clock_resolution,
