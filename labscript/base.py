@@ -381,28 +381,31 @@ class Device:
             return None
         return self.parent_device.pseudoclock_device
 
-    def quantise_to_pseudoclock(self, times):
+    def quantise_to_pseudoclock(self, times, ticks=False):
         """Quantises `times` to the resolution of the controlling pseudoclock.
 
         Parameters
         ----------
         times : :obj:`numpy:numpy.ndarray` or list or float
             Time, in seconds, to quantise.
+        ticks : bool, optional
+            If `True`, return whole clock ticks, as integers, instead of seconds.
 
         Returns
         -------
         same type as `times`
-            Quantised times.
+            Quantised times, or an int for a float `times` in ticks.
         """
         convert_back_to = None
         if not isinstance(times, np.ndarray):
             if isinstance(times, list):
                 convert_back_to = list
             else:
-                convert_back_to = float
+                convert_back_to = int if ticks else float
             times = np.array(times)
         resolution = self.pseudoclock_device.clock_resolution
-        times = (times / resolution).round() * resolution
+        times = (times / resolution).round()
+        times = times.astype(int) if ticks else times * resolution
 
         if convert_back_to is not None:
             times = convert_back_to(times)
