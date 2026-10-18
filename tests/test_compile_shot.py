@@ -147,6 +147,26 @@ class CompileTests(unittest.TestCase):
             )
         self.assertLess(pseudoclock, other)
 
+    def test_a_pseudoclock_refuses_clock_lines_beyond_its_limit(self):
+        limited = textwrap.dedent(
+            '''
+            from labscript import ClockLine, Pseudoclock
+
+            class AnyPseudoclocks(DummyPseudoclock):
+                allowed_children = [Pseudoclock]
+                max_pseudoclocks = None
+
+            AnyPseudoclocks(name='pseudoclock')
+            Pseudoclock('limited', pseudoclock, 'limited', max_clock_lines=1)
+            ClockLine('first', limited, 'first')
+            ClockLine('second', limited, 'second')
+            '''
+        )
+        with open(self.script, 'w') as f:
+            f.write(SHOT.replace("DummyPseudoclock(name='pseudoclock')\n", limited))
+        with self.assertRaisesRegex(labscript.LabscriptError, 'can drive only 1'):
+            self.compile_the_shot()
+
     def test_a_pseudoclock_device_may_not_record_its_own_stop_time(self):
         own_stop_time = textwrap.dedent(
             '''

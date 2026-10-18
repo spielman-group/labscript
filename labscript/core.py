@@ -139,7 +139,9 @@ class Pseudoclock(Device):
     number."""
 
     @set_passed_properties(property_names={})
-    def __init__(self, name, pseudoclock_device, connection, **kwargs):
+    def __init__(
+        self, name, pseudoclock_device, connection, max_clock_lines=None, **kwargs
+    ):
         """Creates a Pseudoclock.
 
         Parameters
@@ -150,9 +152,14 @@ class Pseudoclock(Device):
             Parent pseudoclock device
         connection : str
             Connection on this device that links to parent
+        max_clock_lines : int, optional
+            How many clock lines this pseudoclock can drive. If `None`, the class's
+            `max_clock_lines`.
         **kwargs
             Passed to `Device()`.
         """
+        if max_clock_lines is not None:
+            self.max_clock_lines = max_clock_lines
         super().__init__(name, pseudoclock_device, connection, **kwargs)
         self.clock_limit = pseudoclock_device.clock_limit
         self.clock_resolution = pseudoclock_device.clock_resolution
