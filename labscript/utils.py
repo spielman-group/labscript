@@ -90,17 +90,21 @@ def set_passed_properties(property_names=None):
     return decorator
 
 
-def renamed_keyword(kwargs, old, new, value, where):
+def renamed_keyword(kwargs, old, new, value, where, stacklevel=3):
     """Return `kwargs[old]`, warning that `where` will drop it for `new`, if it was
     given, or else `value`.
 
     For a renamed keyword argument whose old name still works for now: `kwargs` is
-    the callable's `**kwargs`, from which `old` is removed.
+    the callable's `**kwargs`, from which `old` is removed. `stacklevel` is passed
+    to `warnings.warn`; the default points at the callable's caller, and 4 does when
+    the callable is wrapped by `set_passed_properties`.
     """
     if old not in kwargs:
         return value
     warnings.warn(
-        f"{where}'s {old} will be removed; use {new}.", FutureWarning, stacklevel=3
+        f"{where}'s {old} will be removed; use {new}.",
+        FutureWarning,
+        stacklevel=stacklevel,
     )
     return kwargs.pop(old)
 
