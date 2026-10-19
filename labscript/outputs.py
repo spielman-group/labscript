@@ -2080,7 +2080,7 @@ class _DDSBase(Device):
         self.gate.go_low(t)
 
     def quantise_channel(
-        self, channel, scale, limits=None, period=None, dtype=np.int64
+        self, channel, scale, limits=None, period=None, dtype=np.int64, values=None
     ):
         """Return a channel's output in its device's integer units, and the scale.
 
@@ -2099,6 +2099,9 @@ class _DDSBase(Device):
             Wrap values into `[0, period)` first, such as 360 for a phase.
         dtype : optional
             The integer type of the result.
+        values : array_like, optional
+            Values to use in place of the channel's `raw_output`, such as ones a
+            device class has transformed.
 
         Returns
         -------
@@ -2106,7 +2109,9 @@ class _DDSBase(Device):
             The values, scaled and rounded, as an array of `dtype`, and `scale`:
             the channel's new `raw_output` and `scale_factor`.
         """
-        values = np.asarray(getattr(self, channel).raw_output, dtype=float)
+        if values is None:
+            values = getattr(self, channel).raw_output
+        values = np.asarray(values, dtype=float)
         if period is not None:
             values = values % period
         low, high = (-np.inf, np.inf) if limits is None else limits
