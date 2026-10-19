@@ -62,7 +62,7 @@ PineBlaster(
     name="pineblaster_0",
     trigger_device=ni_card_0,
     trigger_connection="port0/line15",
-    usbport="COM7",
+    com_port="COM7",
 )
 NI_PCI_6733(
     name="ni_card_1",
@@ -107,9 +107,9 @@ DigitalOut(
     name="switch", parent_device=pulseblaster_0.direct_outputs, connection="flag 4"
 )
 
-DDS(name="dds1", parent_device=novatechdds9m_0, connection="channel 0")
-DDS(name="dds2", parent_device=novatechdds9m_0, connection="channel 1")
-StaticDDS(name="dds5", parent_device=novatechdds9m_0, connection="channel 2")
+DDS(name="dds1", parent_device=novatechdds9m_0, connection="dds 0")
+DDS(name="dds2", parent_device=novatechdds9m_0, connection="dds 1")
+StaticDDS(name="dds5", parent_device=novatechdds9m_0, connection="dds 2")
 # The next DDS is special because its frequency and amplitude are calibrated using the
 # example2 and example3 classes from labscript_utils/unitconversions/example.py
 DDS(

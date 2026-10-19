@@ -213,7 +213,7 @@ class CompileTests(unittest.TestCase):
             )
             PineBlaster(name='pine', trigger_device=pine_out, trigger_connection='t')
             NovaTechDDS9M(name='novatech', parent_device=pine.clockline, com_port='C')
-            DDS(name='dds', parent_device=novatech, connection='channel 0')
+            DDS(name='dds', parent_device=novatech, connection='dds 0')
 
             t = start()
             dds.setfreq(t, 10)
@@ -241,7 +241,7 @@ class CompileTests(unittest.TestCase):
                         output.quantise_channel('frequency', 10, limits=(0, 171e6))
 
             DDSDevice(name='dds_device', parent_device=pseudoclock.clockline)
-            DDS(name='dds', parent_device=dds_device, connection='channel 0')
+            DDS(name='dds', parent_device=dds_device, connection='dds 0')
             '''
         )
         # A NaN is refused even on a channel the device gives no limits:
