@@ -247,7 +247,7 @@ class CompileTests(unittest.TestCase):
         # A NaN is refused even on a channel the device gives no limits:
         for value, refusal in (
             ('dds.setfreq(1, 200e6)', 'frequency of 2'),
-            ("dds.setphase(1, float('nan'))", 'phase of nan'),
+            ("dds.setphase(1, float('nan'))", 'phase of nan, which is not a finite'),
         ):
             with self.subTest(value=value):
                 with h5py.File(self.run_file, 'w') as f:
