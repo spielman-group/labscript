@@ -14,7 +14,6 @@
 """Classes for devices channels that are outputs"""
 
 import sys
-import warnings
 
 import numpy as np
 
@@ -23,17 +22,7 @@ from .base import Device
 from .compiler import compiler
 from .constants import *
 from .core import TriggerableDevice
-from .utils import LabscriptError, set_passed_properties
-
-
-def _renamed_keyword(kwargs, old, new, value):
-    """Return `kwargs[old]` if given, warning that it will be removed, else `value`."""
-    if old not in kwargs:
-        return value
-    warnings.warn(
-        f"{old} will be removed from labscript; use {new}.", FutureWarning, stacklevel=3
-    )
-    return kwargs.pop(old)
+from .utils import LabscriptError, renamed_keyword, set_passed_properties
 
 
 class Output(Device):
@@ -950,9 +939,11 @@ class AnalogQuantity(Output):
             The deprecated names `trunc` and `trunc_type`, for `truncation` and
             `truncation_type`.
         """
-        truncation = _renamed_keyword(kwargs, "trunc", "truncation", truncation)
-        truncation_type = _renamed_keyword(
-            kwargs, "trunc_type", "truncation_type", truncation_type
+        truncation = renamed_keyword(
+            kwargs, "trunc", "truncation", truncation, "exp_ramp"
+        )
+        truncation_type = renamed_keyword(
+            kwargs, "trunc_type", "truncation_type", truncation_type, "exp_ramp"
         )
         if truncation is not None:
             if truncation_type == "linear":
@@ -1026,9 +1017,11 @@ class AnalogQuantity(Output):
             The deprecated names `trunc` and `trunc_type`, for `truncation` and
             `truncation_type`.
         """
-        truncation = _renamed_keyword(kwargs, "trunc", "truncation", truncation)
-        truncation_type = _renamed_keyword(
-            kwargs, "trunc_type", "truncation_type", truncation_type
+        truncation = renamed_keyword(
+            kwargs, "trunc", "truncation", truncation, "exp_ramp_t"
+        )
+        truncation_type = renamed_keyword(
+            kwargs, "trunc_type", "truncation_type", truncation_type, "exp_ramp_t"
         )
         if truncation is not None:
             zero = (final - initial * np.exp(-duration / time_constant)) / (

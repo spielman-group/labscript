@@ -90,6 +90,21 @@ def set_passed_properties(property_names=None):
     return decorator
 
 
+def renamed_keyword(kwargs, old, new, value, where):
+    """Return `kwargs[old]`, warning that `where` will drop it for `new`, if it was
+    given, or else `value`.
+
+    For a renamed keyword argument whose old name still works for now: `kwargs` is
+    the callable's `**kwargs`, from which `old` is removed.
+    """
+    if old not in kwargs:
+        return value
+    warnings.warn(
+        f"{where}'s {old} will be removed; use {new}.", FutureWarning, stacklevel=3
+    )
+    return kwargs.pop(old)
+
+
 def fastflatten(inarray, dtype):
     """A faster way of flattening our arrays than pylab.flatten.
 

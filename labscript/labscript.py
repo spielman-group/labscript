@@ -73,6 +73,7 @@ from .utils import (
     fastflatten,
     max_or_zero,
     no_warnings,
+    renamed_keyword,
     set_passed_properties,
     suppress_all_warnings,
     suppress_mild_warnings,
