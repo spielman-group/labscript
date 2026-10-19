@@ -2109,15 +2109,15 @@ class _DDSBase(Device):
         values = np.asarray(getattr(self, channel).raw_output, dtype=float)
         if period is not None:
             values = values % period
-        if limits is not None:
-            low, high = limits
-            outside = ~((values >= low) & (values <= high))
-            if np.any(outside):
-                raise LabscriptError(
-                    f"{self.description} {self.name} has a {channel} of "
-                    f"{values[outside][0]}, outside {low} to {high}, the limits of "
-                    f"{self.parent_device.name}."
-                )
+        low, high = (-np.inf, np.inf) if limits is None else limits
+        # Written so that NaN, which fails every comparison, is refused too:
+        bad = ~((values >= low) & (values <= high) & np.isfinite(values))
+        if np.any(bad):
+            raise LabscriptError(
+                f"{self.description} {self.name} has a {channel} of "
+                f"{values[bad][0]}, outside {low} to {high}, the limits of "
+                f"{self.parent_device.name}."
+            )
         return np.floor(scale * values + 0.5).astype(dtype), scale
 
 

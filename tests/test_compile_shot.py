@@ -237,17 +237,26 @@ class CompileTests(unittest.TestCase):
 
                 def generate_code(self, hdf5_file):
                     for output in self.child_devices:
-                        output.quantise_channel('frequency', 10, limits=(0.1, 171e6))
+                        output.quantise_channel('phase', 45.5, period=360)
+                        output.quantise_channel('frequency', 10, limits=(0, 171e6))
 
             DDSDevice(name='dds_device', parent_device=pseudoclock.clockline)
             DDS(name='dds', parent_device=dds_device, connection='channel 0')
             '''
         )
-        with open(self.script, 'w') as f:
-            script = SHOT.replace('t = 0\n', dds + 't = 0\n')
-            f.write(script.replace('start()\n', 'start()\ndds.setfreq(1, 200e6)\n'))
-        with self.assertRaisesRegex(labscript.LabscriptError, 'DDS dds has a frequency'):
-            self.compile_the_shot()
+        # A NaN is refused even on a channel the device gives no limits:
+        for value, refusal in (
+            ('dds.setfreq(1, 200e6)', 'frequency of 2'),
+            ("dds.setphase(1, float('nan'))", 'phase of nan'),
+        ):
+            with self.subTest(value=value):
+                with h5py.File(self.run_file, 'w') as f:
+                    f.create_group('globals')
+                with open(self.script, 'w') as f:
+                    script = SHOT.replace('t = 0\n', dds + 't = 0\n')
+                    f.write(script.replace('start()\n', f'start()\n{value}\n'))
+                with self.assertRaisesRegex(labscript.LabscriptError, refusal):
+                    self.compile_the_shot()
 
     def test_a_pseudoclock_device_may_not_record_its_own_stop_time(self):
         own_stop_time = textwrap.dedent(
