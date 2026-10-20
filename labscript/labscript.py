@@ -448,7 +448,8 @@ def save_labscripts(hdf5_file):
         Handle to file to save to.
     """
     if compiler.labscript_file is not None:
-        script_text = open(compiler.labscript_file).read()
+        with open(compiler.labscript_file) as f:
+            script_text = f.read()
     else:
         script_text = ''
     script = hdf5_file.create_dataset('script', data=script_text)
@@ -482,7 +483,8 @@ def save_labscripts(hdf5_file):
                     # A module can appear twice, e.g. __init__.py when a whole
                     # package is imported with `from labscriptlib.stages import *`.
                     continue
-                hdf5_file.create_dataset(save_path, data=open(path).read())
+                with open(path) as f:
+                    hdf5_file.create_dataset(save_path, data=f.read())
                 with _vcs_cache_rlock:
                     if path not in _vcs_cache:
                         # Add file to watch list and create its entry in the cache.
