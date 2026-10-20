@@ -227,7 +227,7 @@ class CompileTests(unittest.TestCase):
             f.write(script)
         self.compile_the_shot()
 
-    def test_a_dds_value_outside_its_device_limits_is_refused(self):
+    def test_a_dds_value_reaches_its_device_in_range_or_is_refused(self):
         dds = textwrap.dedent(
             '''
             from labscript import DDS
@@ -237,8 +237,12 @@ class CompileTests(unittest.TestCase):
 
                 def generate_code(self, hdf5_file):
                     for output in self.child_devices:
-                        output.quantise_channel('phase', 45.5, period=360)
+                        phase, _ = output.quantise_channel(
+                            'phase', 2**14 / 360, period=360
+                        )
                         output.quantise_channel('frequency', 10, limits=(0, 171e6))
+                        group = self.init_device_group(hdf5_file)
+                        group.create_dataset('phase', data=phase)
 
             DDSDevice(name='dds_device', parent_device=pseudoclock.clockline)
             DDS(name='dds', parent_device=dds_device, connection='dds 0')
@@ -257,6 +261,17 @@ class CompileTests(unittest.TestCase):
                     f.write(script.replace('start()\n', f'start()\n{value}\n'))
                 with self.assertRaisesRegex(labscript.LabscriptError, refusal):
                     self.compile_the_shot()
+        # A phase just under a turn, or just below zero, wraps to the device's 0
+        # rather than to one past its largest phase word:
+        with h5py.File(self.run_file, 'w') as f:
+            f.create_group('globals')
+        with open(self.script, 'w') as f:
+            script = SHOT.replace('t = 0\n', dds + 't = 0\n')
+            phases = 'dds.setphase(1, 359.9999)\ndds.setphase(1.5, -1e-6)\n'
+            f.write(script.replace('start()\n', 'start()\n' + phases))
+        self.compile_the_shot()
+        with h5py.File(self.run_file, 'r') as f:
+            self.assertEqual(set(f['devices/dds_device/phase'][()]), {0})
 
     def test_a_pseudoclock_device_may_not_record_its_own_stop_time(self):
         own_stop_time = textwrap.dedent(

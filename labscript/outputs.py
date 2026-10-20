@@ -2089,7 +2089,8 @@ class _DDSBase(Device):
             The device's `(minimum, maximum)`, in the channel's units. A value
             outside them raises `LabscriptError`.
         period : float, optional
-            Wrap values into `[0, period)` first, such as 360 for a phase.
+            The channel's period, such as 360 for a phase. The rounded result wraps
+            modulo `scale * period`, so that a value just under a period gives 0.
         dtype : optional
             The integer type of the result.
         values : array_like, optional
@@ -2105,8 +2106,6 @@ class _DDSBase(Device):
         if values is None:
             values = getattr(self, channel).raw_output
         values = np.asarray(values, dtype=float)
-        if period is not None:
-            values = values % period
         description = f"{self.description} {self.name} has a {channel} of"
         if not np.all(np.isfinite(values)):
             value = values[~np.isfinite(values)][0]
@@ -2121,7 +2120,10 @@ class _DDSBase(Device):
                     f"{description} {values[outside][0]}, outside {low} to {high}, "
                     f"the limits of {self.parent_device.name}."
                 )
-        return np.floor(scale * values + 0.5).astype(dtype), scale
+        words = np.floor(scale * values + 0.5)
+        if period is not None:
+            words %= round(scale * period)
+        return words.astype(dtype), scale
 
 
 class DDSQuantity(_DDSBase):
