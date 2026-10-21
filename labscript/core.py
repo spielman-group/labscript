@@ -747,9 +747,9 @@ class PseudoclockDevice(TriggerableDevice):
 
     labscript records the device properties `is_master_pseudoclock` and
     `stop_time`, the end of the device's program in its own time base, for every
-    pseudoclock device, and `trigger_times`, the script times its start and each
-    resume are triggered at, for every one but the master. A subclass must not set
-    `is_master_pseudoclock` or `stop_time` itself.
+    pseudoclock device, and `trigger_times`, the script times its program starts and
+    resumes from, each trigger plus any `wait_delay`, for every one but the master.
+    A subclass must not set `is_master_pseudoclock` or `stop_time` itself.
     """
 
     description = "Generic Pseudoclock Device"
@@ -897,6 +897,9 @@ class PseudoclockDevice(TriggerableDevice):
             t = self.trigger_device._round_time(t)
             super().trigger(t, duration)
             self.trigger_times.append(self.trigger_device._round_time(t + wait_delay))
+        # In time order, which the trigger offsets count in, whatever order waits
+        # were called in:
+        self.trigger_times.sort()
 
     def do_checks(self, outputs):
         """Basic error checking to ensure the user's instructions make sense.
@@ -957,7 +960,8 @@ class PseudoclockDevice(TriggerableDevice):
         outputs = self.get_all_outputs()
         self.do_checks(outputs)
         if not self.is_master_pseudoclock:
-            # In script time, as the trigger device rounded them, before the offsets:
+            # The script times its program resumes from, each trigger plus any
+            # wait_delay as the trigger device rounded it, before the offsets:
             trigger_times = [float(t) for t in self.trigger_times]
             self.set_property(
                 'trigger_times', trigger_times, location='device_properties'

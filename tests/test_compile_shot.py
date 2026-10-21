@@ -217,15 +217,29 @@ class CompileTests(unittest.TestCase):
 
             t = start()
             dds.setfreq(t, 10)
-            t += 1
-            t += wait('a wait', t)
-            dds.setfreq(t, 20)
-            stop(t + 1)
+            delay = wait('a wait', 1)
+            wait('b wait', 2)
+            dds.setfreq(1 + delay, 20)
+            dds.setfreq(2 + delay, 30)
+            stop(3)
             '''
         )
-        with open(self.script, 'w') as f:
-            f.write(script)
-        self.compile_the_shot()
+        # Waits called out of time order compile as though called in it:
+        swapped = script.replace(
+            "delay = wait('a wait', 1)\nwait('b wait', 2)\n",
+            "wait('b wait', 2)\ndelay = wait('a wait', 1)\n",
+        )
+        programs = []
+        for order in (script, swapped):
+            with h5py.File(self.run_file, 'w') as f:
+                f.create_group('globals')
+            with open(self.script, 'w') as f:
+                f.write(order)
+            self.compile_the_shot()
+            with h5py.File(self.run_file, 'r') as f:
+                programs.append(f['devices/pine/PULSE_PROGRAM'][()].tolist())
+        self.assertNotEqual(script, swapped)
+        self.assertEqual(programs[0], programs[1])
 
     def test_a_dds_value_reaches_its_device_in_range_or_is_refused(self):
         dds = textwrap.dedent(
