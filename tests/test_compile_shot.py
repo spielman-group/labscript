@@ -359,9 +359,16 @@ class CompileTests(unittest.TestCase):
             f.write(script)
         self.compile_the_shot()
 
+        import labscript_utils.properties as properties
+
         with h5py.File(self.run_file, 'r') as f:
             values = f['devices/fast_device/OUTPUTS']['fast_out']
+            device_properties = properties.get(f, 'secondary', 'device_properties')
         self.assertEqual(values[0], 0, 'starts at the default, before the ramp')
+        self.assertEqual(
+            list(device_properties['trigger_times']), [0, 0.5, 2],
+            'its start and each resume, in script time',
+        )
         self.assertEqual(
             list(values).count(7), 1, 'kept at the ramp end, until the resume'
         )

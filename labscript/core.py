@@ -747,7 +747,9 @@ class PseudoclockDevice(TriggerableDevice):
 
     labscript records the device properties `is_master_pseudoclock` and
     `stop_time`, the end of the device's program in its own time base, for every
-    pseudoclock device. A subclass must not set them itself.
+    pseudoclock device, and `trigger_times`, the script times its start and each
+    resume are triggered at, for every one but the master. A subclass must not set
+    `is_master_pseudoclock` or `stop_time` itself.
     """
 
     description = "Generic Pseudoclock Device"
@@ -816,7 +818,6 @@ class PseudoclockDevice(TriggerableDevice):
                     "triggering each other in series is not supported."
                 )
         self.trigger_times = []
-        self.wait_times = []
         self.initial_trigger_time = 0
 
     def add_device(self, device):
@@ -955,6 +956,12 @@ class PseudoclockDevice(TriggerableDevice):
     def generate_code(self, hdf5_file):
         outputs = self.get_all_outputs()
         self.do_checks(outputs)
+        if not self.is_master_pseudoclock:
+            # In script time, as the trigger device rounded them, before the offsets:
+            trigger_times = [float(t) for t in self.trigger_times]
+            self.set_property(
+                'trigger_times', trigger_times, location='device_properties'
+            )
         self.offset_instructions_from_trigger(outputs)
         self.set_property(
             'is_master_pseudoclock',
