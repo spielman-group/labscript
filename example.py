@@ -31,7 +31,7 @@ from labscript_devices.NI_DAQmx.labscript_devices import NI_PCIe_6363
 from labscript_devices.NovaTechDDS9M import NovaTechDDS9M
 from labscript_devices.PineBlaster import PineBlaster
 from labscript_devices.NI_DAQmx.labscript_devices import NI_PCI_6733
-from labscript_utils.unitconversions import example1, example2, example3
+from labscript_utils.unitconversions import example1, example2, example4
 
 PulseBlaster(name="pulseblaster_0", board_number=0)
 ClockLine(
@@ -111,15 +111,15 @@ DDS(name="dds1", parent_device=novatechdds9m_0, connection="dds 0")
 DDS(name="dds2", parent_device=novatechdds9m_0, connection="dds 1")
 StaticDDS(name="dds5", parent_device=novatechdds9m_0, connection="dds 2")
 # The next DDS is special because its frequency and amplitude are calibrated using the
-# example2 and example3 classes from labscript_utils/unitconversions/example.py
+# example2 and example4 classes from labscript_utils/unitconversions/example.py
 DDS(
     name="dds3",
     parent_device=pulseblaster_0.direct_outputs,
     connection="dds 0",
     freq_conv_class=example2,
     freq_conv_params={"a": 4, "b": 6},
-    amp_conv_class=example3,
-    amp_conv_params={"a": 2, "b": 22, "magnitudes": ["m"]},
+    amp_conv_class=example4,
+    amp_conv_params={"magnitudes": ["m"]},
 )
 DDS(name="dds4", parent_device=pulseblaster_0.direct_outputs, connection="dds 1")
 
