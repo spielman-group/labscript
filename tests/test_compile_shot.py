@@ -329,7 +329,7 @@ class CompileTests(unittest.TestCase):
             f.write(script.replace('start()\n', 'start()\n' + ramps.replace(
                 'square, samplerate', 'lambda t, duration: 0.7, samplerate', 1
             )))
-        with self.assertRaisesRegex(labscript.LabscriptError, 'other than'):
+        with self.assertRaisesRegex(labscript.LabscriptError, r'\[0, 1\]'):
             self.compile_the_shot()
 
     def test_a_pseudoclock_device_may_not_record_its_own_stop_time(self):

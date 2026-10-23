@@ -330,6 +330,11 @@ class Output(Device):
                         f"{self.name} as it falls outside the limits "
                         f"({self.limits[0]} to {self.limits[1]})"
                     )
+            if not self._in_allowed_states(instruction):
+                raise LabscriptError(
+                    f"You cannot program the value {instruction} to {self.name} as "
+                    f"it is not one of {sorted(self.allowed_states)}"
+                )
         # Re-insert, so that dict order is call order: of instructions on
         # one secondary tick, the one added last is kept.
         self.instructions.pop(time, None)
@@ -392,6 +397,12 @@ class Output(Device):
             },
         )
 
+    def _in_allowed_states(self, values):
+        """Whether all of `values` are allowed states, or the output has none."""
+        return not self.allowed_states or np.isin(
+            values, list(self.allowed_states)
+        ).all()
+
     def _check_truncation(self, truncation, min=0, max=1):
         if not (min <= truncation <= max):
             raise LabscriptError(
@@ -435,7 +446,8 @@ class Output(Device):
         if truncation > 0:
             self._add_ramp(
                 t, duration, truncation * duration,
-                f"custom ramp: {function.__name__}", samplerate, units,
+                f"custom ramp: {getattr(function, '__name__', function)}",
+                samplerate, units,
                 custom_ramp_func,
             )
         return truncation * duration
@@ -696,12 +708,11 @@ class Output(Device):
                                 "value which falls outside the base unit limits "
                                 f"({self.limits[0]} to {self.limits[1]})"
                             )
-                    states = self.allowed_states
-                    if states and not np.isin(outarray, list(states)).all():
+                    if not self._in_allowed_states(outarray):
                         raise LabscriptError(
                             f"The function {self.timeseries[i]['function']} called "
                             f'on "{self.name}" at t={midpoints[0]} generated a '
-                            f"value other than {sorted(states)}"
+                            f"value other than {sorted(self.allowed_states)}"
                         )
                 else:
                     outarray = np.empty(time_len, dtype=self.dtype)
@@ -1568,8 +1579,10 @@ class DigitalQuantity(Output):
             ramp = function
 
             @functools.wraps(ramp)
-            def function(*args, **kwargs):
+            def inverted(*args, **kwargs):
                 return 1 - ramp(*args, **kwargs)
+
+            function = inverted
 
         return super().customramp(t, duration, function, *args, **kwargs)
 
@@ -1607,8 +1620,10 @@ class DigitalQuantity(Output):
         Notes
         -----
         The samplerate should be significantly faster than the shortest state in
-        the pattern, or else that state may never be output. The pattern repeats
-        exactly only if `period` is a whole number of samples.
+        the pattern, or else that state may never be output. The pattern can
+        repeat exactly only if `period` is a whole number of samples, and then
+        only if the clock can sample at exactly `samplerate` and no other output
+        changes during the ramp.
         """
         states, lengths = zip(*pattern)
         if min(lengths) <= 0:
@@ -1641,7 +1656,9 @@ class DigitalQuantity(Output):
                 f"WARNING: {self.description} {self.name} repeats pulses every "
                 f"{period} s, which is {samples:g} samples at {samplerate} Hz. "
                 "Since that is not a whole number, its pulses will not repeat "
-                f"exactly. A period of {periods} would.\n"
+                f"exactly. A period of {periods} would be whole samples, though the "
+                "clock may still round the sample period, and another output's "
+                "change can shift the samples.\n"
             )
         pulses = functions.pulse_sequence(pulse_sequence, period)
 
