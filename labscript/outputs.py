@@ -253,6 +253,22 @@ class Output(Device):
                 "Due to the delay in triggering its pseudoclock device, the earliest "
                 f"output possible is at t={self.t0}."
             )
+        # A value is checked before anything formats it:
+        if not isinstance(instruction, dict):
+            if units is not None:
+                instruction = self.apply_calibration(instruction, units)
+            if self.limits:
+                if (instruction < self.limits[0]) or (instruction > self.limits[1]):
+                    raise LabscriptError(
+                        f"You cannot program the value {instruction} (base units) to "
+                        f"{self.name} as it falls outside the limits "
+                        f"({self.limits[0]} to {self.limits[1]})"
+                    )
+            if not self._in_allowed_states(instruction):
+                raise LabscriptError(
+                    f"You cannot program the value {instruction} to {self.name} as "
+                    f"it is not one of {sorted(self.allowed_states)}"
+                )
         # Check that this doesn't collide with previous instructions:
         if time in self.instructions.keys():
             previous = self._requested_times[time]
@@ -265,11 +281,7 @@ class Output(Device):
                 asked = ""
             if not compiler.suppress_all_warnings:
                 current_value = self.instruction_to_string(self.instructions[time])
-                new_value = self.instruction_to_string(
-                    self.apply_calibration(instruction, units)
-                    if units and not isinstance(instruction, dict)
-                    else instruction
-                )
+                new_value = self.instruction_to_string(instruction)
                 sys.stderr.write(
                     f"WARNING: State of {self.description} {self.name} at t={time}s "
                     f"has already been set to {current_value}. Overwriting to "
@@ -320,21 +332,6 @@ class Output(Device):
                 )
             if instruction["clock rate"] == 0:
                 raise LabscriptError("A nonzero sample rate is required.")
-        else:
-            if units is not None:
-                instruction = self.apply_calibration(instruction, units)
-            if self.limits:
-                if (instruction < self.limits[0]) or (instruction > self.limits[1]):
-                    raise LabscriptError(
-                        f"You cannot program the value {instruction} (base units) to "
-                        f"{self.name} as it falls outside the limits "
-                        f"({self.limits[0]} to {self.limits[1]})"
-                    )
-            if not self._in_allowed_states(instruction):
-                raise LabscriptError(
-                    f"You cannot program the value {instruction} to {self.name} as "
-                    f"it is not one of {sorted(self.allowed_states)}"
-                )
         # Re-insert, so that dict order is call order: of instructions on
         # one secondary tick, the one added last is kept.
         self.instructions.pop(time, None)
@@ -1620,10 +1617,11 @@ class DigitalQuantity(Output):
         Notes
         -----
         The samplerate should be significantly faster than the shortest state in
-        the pattern, or else that state may never be output. The pattern can
-        repeat exactly only if `period` is a whole number of samples, and then
-        only if the clock can sample at exactly `samplerate` and no other output
-        changes during the ramp.
+        the pattern, or else that state may never be output. The pattern repeats
+        exactly only if `period` is a whole number of the samples the clock
+        actually plays, which it rounds from `samplerate`, and no other output
+        changes during the ramp. A warning says when `period` is not a whole
+        number of requested samples.
         """
         states, lengths = zip(*pattern)
         if min(lengths) <= 0:
@@ -1655,7 +1653,7 @@ class DigitalQuantity(Output):
             sys.stderr.write(
                 f"WARNING: {self.description} {self.name} repeats pulses every "
                 f"{period} s, which is {samples:g} samples at {samplerate} Hz. "
-                "Since that is not a whole number, its pulses will not repeat "
+                "Since that is not a whole number, its pulses may not repeat "
                 f"exactly. A period of {periods} would be whole samples, though the "
                 "clock may still round the sample period, and another output's "
                 "change can shift the samples.\n"
