@@ -1574,24 +1574,25 @@ class DigitalQuantity(Output):
         return super().customramp(t, duration, function, *args, **kwargs)
 
     def pulse_sequence_ramp(
-        self, t, duration, pulse_sequence, period, samplerate, invert=None
+        self, t, duration, pattern, period, samplerate, invert=None
     ):
-        """Repeat a pulse sequence from time `t` until `t+duration`.
+        """Repeat a pattern of states every `period` from time `t` until
+        `t+duration`.
 
-        This only works if the DigitalQuantity is on a fast clock.
+        This only works if the DigitalQuantity is on a fast clock. The pattern
+        starts at `t`, and is cut wherever it is at `t+duration`.
 
         Parameters
         ----------
         t : float
-            Time, in seconds, to start the pulse sequence.
+            Time, in seconds, to start the pattern.
         duration : float
-            How long, in seconds, to repeat the sequence.
-        pulse_sequence : list
-            List of tuples, with each tuple of the form `(time, state)`.
+            How long, in seconds, to repeat the pattern.
+        pattern : list
+            `(state, length)` pairs, in order. The lengths are relative: they are
+            scaled to fill one period. `[(1, 0.5), (0, 0.5)]` is a square wave.
         period : float
-            Defines how long the final tuple will be held for before repeating
-            the pulse sequence. In general, should be longer than the entire pulse
-            sequence.
+            How long, in seconds, one repetition of the pattern lasts.
         samplerate : float
             How often to update the output, in Hz.
         invert : bool, optional
@@ -1605,16 +1606,38 @@ class DigitalQuantity(Output):
 
         Notes
         -----
-        The samplerate should be significantly faster than the smallest time
-        difference between two states in the pulse sequence, or else points in
-        your pulse sequence may never be evaluated.
-
-        The time points your pulse sequence is evaluated at may be different than
-        you expect, if another output changes state between t and t+duration. As
-        such, you should set the samplerate high enough that even if this rounding
-        of time points occurs (to fit in the update required to change the other
-        output) your pulse sequence will not be significantly altered.
+        The samplerate should be significantly faster than the shortest state in
+        the pattern, or else that state may never be output. The pattern repeats
+        exactly only if `period` is a whole number of samples.
         """
+        states, lengths = zip(*pattern)
+        if min(lengths) <= 0:
+            raise LabscriptError(
+                f"{self.description} {self.name}'s pattern has a length that is not "
+                f"positive: {list(lengths)}."
+            )
+        starts = period * np.cumsum((0,) + lengths[:-1]) / sum(lengths)
+        return self._repeat_pulses(
+            t, duration, list(zip(starts, states)), period, samplerate, invert
+        )
+
+    def _repeat_pulses(self, t, duration, pulse_sequence, period, samplerate, invert):
+        """Repeat `pulse_sequence`, of `(time, state)` pairs, every `period` from
+        `t`."""
+        # A relative tolerance well above the float error of the product:
+        samples = period * samplerate
+        if (
+            abs(samples - round(samples)) > 1e-9 * samples
+            and not compiler.suppress_all_warnings
+        ):
+            fewer, more = max(1, int(samples)), int(samples) + 1
+            sys.stderr.write(
+                f"WARNING: {self.description} {self.name} repeats pulses every "
+                f"{period} s, which is {samples:g} samples at {samplerate} Hz. "
+                "Since that is not a whole number, its pulses will not repeat "
+                f"exactly. A period of {fewer / samplerate} s or {more / samplerate} "
+                "s would.\n"
+            )
         pulses = functions.pulse_sequence(pulse_sequence, period)
 
         def repeated_pulses(t, duration):
@@ -1627,7 +1650,9 @@ class DigitalQuantity(Output):
     def repeat_pulse_sequence(self, t, duration, pulse_sequence, period, samplerate):
         """Deprecated: use `pulse_sequence_ramp`, which obeys `inverted`.
 
-        Its states are output as given, whatever the output's `inverted`.
+        Repeats `pulse_sequence`, a list of `(time, state)` pairs, every `period`
+        from `t` until `t+duration`. Its states are output as given, whatever the
+        output's `inverted`.
         """
         # LEGACY PULSE SEQUENCE. DEPRECATED CODE, WILL BE REMOVED.
         warnings.warn(
@@ -1636,7 +1661,7 @@ class DigitalQuantity(Output):
             FutureWarning,
             stacklevel=2,
         )
-        return self.pulse_sequence_ramp(
+        return self._repeat_pulses(
             t, duration, pulse_sequence, period, samplerate, invert=False
         )
 
