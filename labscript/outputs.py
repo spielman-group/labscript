@@ -2073,7 +2073,7 @@ class _DDSBase(Device):
         self.gate.go_low(t)
 
     def quantise_channel(
-        self, channel, scale, limits=None, period=None, dtype=np.int64, values=None
+        self, output, scale, limits=None, period=None, dtype=np.int64, values=None
     ):
         """Return a channel's output in its device's integer units, and the scale.
 
@@ -2081,8 +2081,8 @@ class _DDSBase(Device):
 
         Parameters
         ----------
-        channel : str
-            `'frequency'`, `'amplitude'` or `'phase'`.
+        output : :obj:`Output`
+            The channel: this DDS's `frequency`, `amplitude` or `phase`.
         scale : float
             Device units per unit of the channel's output, such as 10 for 0.1 Hz.
         limits : tuple of float, optional
@@ -2104,9 +2104,9 @@ class _DDSBase(Device):
             the channel's new `raw_output` and `scale_factor`.
         """
         if values is None:
-            values = getattr(self, channel).raw_output
+            values = output.raw_output
         values = np.asarray(values, dtype=float)
-        description = f"{self.description} {self.name} has a {channel} of"
+        description = f"{output.description} {output.name} has the value"
         if not np.all(np.isfinite(values)):
             value = values[~np.isfinite(values)][0]
             raise LabscriptError(

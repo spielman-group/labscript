@@ -252,9 +252,11 @@ class CompileTests(unittest.TestCase):
                 def generate_code(self, hdf5_file):
                     for output in self.child_devices:
                         phase, _ = output.quantise_channel(
-                            'phase', 2**14 / 360, period=360
+                            output.phase, 2**14 / 360, period=360
                         )
-                        output.quantise_channel('frequency', 10, limits=(0, 171e6))
+                        output.quantise_channel(
+                            output.frequency, 10, limits=(0, 171e6)
+                        )
                         group = self.init_device_group(hdf5_file)
                         group.create_dataset('phase', data=phase)
 
@@ -264,8 +266,8 @@ class CompileTests(unittest.TestCase):
         )
         # A NaN is refused even on a channel the device gives no limits:
         for value, refusal in (
-            ('dds.setfreq(1, 200e6)', 'frequency of 2'),
-            ("dds.setphase(1, float('nan'))", 'phase of nan, which is not a finite'),
+            ('dds.setfreq(1, 200e6)', 'dds_freq has the value 2'),
+            ("dds.setphase(1, float('nan'))", 'dds_phase has the value nan, which'),
         ):
             with self.subTest(value=value):
                 with h5py.File(self.run_file, 'w') as f:
