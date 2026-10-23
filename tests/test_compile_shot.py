@@ -305,6 +305,8 @@ class CompileTests(unittest.TestCase):
             '''
             plain.customramp(0.5, 0.1, square, samplerate=1e3)
             inverse.customramp(0.5, 0.1, square, samplerate=1e3)
+            plain.customramp(1.5, 0.1, lambda t, duration: True, samplerate=1e3)
+            inverse.customramp(1.5, 0.1, lambda t, duration: True, samplerate=1e3)
             '''
         )
         script = SHOT.replace('t = 0\n', outputs + 't = 0\n')
@@ -316,7 +318,7 @@ class CompileTests(unittest.TestCase):
         plain, inverse = values['plain'], values['inverse']
         self.assertEqual(set(plain), {0, 1})
         # Both hold the default, 0, until the ramp, and are each other's inverse
-        # from then on:
+        # from then on, booleans included:
         both = plain + inverse
         self.assertEqual(list(both), sorted(both))
         self.assertEqual(set(both), {0, 1})
