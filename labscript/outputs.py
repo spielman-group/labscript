@@ -15,6 +15,7 @@
 
 import functools
 import sys
+import warnings
 
 import numpy as np
 
@@ -1572,11 +1573,12 @@ class DigitalQuantity(Output):
 
         return super().customramp(t, duration, function, *args, **kwargs)
 
-    def repeat_pulse_sequence(self, t, duration, pulse_sequence, period, samplerate):
+    def pulse_sequence_ramp(
+        self, t, duration, pulse_sequence, period, samplerate, invert=None
+    ):
         """Repeat a pulse sequence from time `t` until `t+duration`.
 
-        This only works if the DigitalQuantity is on a fast clock. The states are
-        output as given, whatever the output's `inverted`.
+        This only works if the DigitalQuantity is on a fast clock.
 
         Parameters
         ----------
@@ -1592,6 +1594,9 @@ class DigitalQuantity(Output):
             sequence.
         samplerate : float
             How often to update the output, in Hz.
+        invert : bool, optional
+            Whether to invert the states, as `enable` and `disable` invert. If
+            `None`, the output's `inverted`.
 
         Returns
         -------
@@ -1612,11 +1617,27 @@ class DigitalQuantity(Output):
         """
         pulses = functions.pulse_sequence(pulse_sequence, period)
 
-        def pulse_sequence_ramp(t, duration):
+        def repeated_pulses(t, duration):
             return pulses(t)
 
         return self.customramp(
-            t, duration, pulse_sequence_ramp, samplerate=samplerate, invert=False
+            t, duration, repeated_pulses, samplerate=samplerate, invert=invert
+        )
+
+    def repeat_pulse_sequence(self, t, duration, pulse_sequence, period, samplerate):
+        """Deprecated: use `pulse_sequence_ramp`, which obeys `inverted`.
+
+        Its states are output as given, whatever the output's `inverted`.
+        """
+        # LEGACY PULSE SEQUENCE. DEPRECATED CODE, WILL BE REMOVED.
+        warnings.warn(
+            "repeat_pulse_sequence will be removed from labscript; use "
+            "pulse_sequence_ramp, which obeys the output's inverted.",
+            FutureWarning,
+            stacklevel=2,
+        )
+        return self.pulse_sequence_ramp(
+            t, duration, pulse_sequence, period, samplerate, invert=False
         )
 
 

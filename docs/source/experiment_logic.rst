@@ -19,6 +19,11 @@ Most scripts keep a variable, conventionally ``t``, for the current time, and mo
 
 Commands need not be given in time order: labscript sorts them. How times are rounded to the clock is described in :doc:`timing`.
 
+Digital ramps
+-------------
+
+A digital output on a clock line that can ramp takes :py:meth:`customramp() <labscript.outputs.Output.customramp>`, whose function returns 0 or 1, or ``False`` or ``True``, and :py:meth:`pulse_sequence_ramp() <labscript.outputs.DigitalQuantity.pulse_sequence_ramp>`, which repeats a sequence of states. Both are inverted with an inverted output, as ``enable`` and ``disable`` are, unless ``invert`` says otherwise. Shutters and triggers do not ramp.
+
 Waits
 -----
 
