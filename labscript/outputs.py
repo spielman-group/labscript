@@ -13,6 +13,7 @@
 
 """Classes for devices channels that are outputs"""
 
+import functools
 import sys
 
 import numpy as np
@@ -32,6 +33,8 @@ class Output(Device):
     allowed_states = None
     dtype = np.float64
     scale_factor = 1
+    ramps_allowed = True
+    """bool: Whether the output can ramp, on a clock line that can."""
 
     @set_passed_properties(property_names={})
     def __init__(
@@ -363,6 +366,12 @@ class Output(Device):
     ):
         """Add a ramp from `t`, evaluating `function(duration, *args)` for the first
         `performed` seconds of it."""
+        if not self.ramps_allowed:
+            raise LabscriptError(
+                f"{self.description} {self.name} cannot ramp. Set it with its own "
+                "methods instead, such as constant, go_high and go_low, open and "
+                "close, or trigger."
+            )
         # Durations measured from the rounded start, on the same scale as the
         # sample times the function is evaluated at, so that their errors cancel:
         start = self._round_time(t)
@@ -381,6 +390,54 @@ class Output(Device):
                 "units": units,
             },
         )
+
+    def _check_truncation(self, truncation, min=0, max=1):
+        if not (min <= truncation <= max):
+            raise LabscriptError(
+                f"Truncation argument must be between {min} and {max} (inclusive), but "
+                f"is {truncation}."
+            )
+
+    def customramp(self, t, duration, function, *args, **kwargs):
+        """Define a custom function for the output.
+
+        Parameters
+        ----------
+        t : float
+            Time, in seconds, to start the function.
+        duration : float
+            Length in time, in seconds, to perform the function.
+        function : callable
+            Function handle that defines the output waveform. First argument is
+            the relative time from function start, in seconds.
+        *args
+            Arguments passed to `function`.
+        **kwargs
+            Keyword arguments pass to `function`. Standard kwargs common to other
+            output functions are: `units`, `samplerate`, and `truncation`. These
+            kwargs are optional, but will not be passed to `function` if present.
+
+        Returns
+        -------
+        float
+            Duration the function is to be evaluated for. Equivalent to
+            `truncation*duration`.
+        """
+        units = kwargs.pop("units", None)
+        samplerate = kwargs.pop("samplerate")
+        truncation = kwargs.pop("truncation", 1.)
+        self._check_truncation(truncation)
+
+        def custom_ramp_func(duration):
+            return lambda t_rel: function(t_rel, duration, *args, **kwargs)
+
+        if truncation > 0:
+            self._add_ramp(
+                t, duration, truncation * duration,
+                f"custom ramp: {function.__name__}", samplerate, units,
+                custom_ramp_func,
+            )
+        return truncation * duration
 
     def do_checks(self, trigger_times):
         """Basic error checking to ensure the user's instructions make sense.
@@ -638,6 +695,13 @@ class Output(Device):
                                 "value which falls outside the base unit limits "
                                 f"({self.limits[0]} to {self.limits[1]})"
                             )
+                    states = self.allowed_states
+                    if states and not np.isin(outarray, list(states)).all():
+                        raise LabscriptError(
+                            f"The function {self.timeseries[i]['function']} called "
+                            f'on "{self.name}" at t={midpoints[0]} generated a '
+                            f"value other than {sorted(states)}"
+                        )
                 else:
                     outarray = np.empty(time_len, dtype=self.dtype)
                     outarray.fill(self.timeseries[i])
@@ -660,13 +724,6 @@ class AnalogQuantity(Output):
 
     description = "analog quantity"
     default_value = 0
-
-    def _check_truncation(self, truncation, min=0, max=1):
-        if not (min <= truncation <= max):
-            raise LabscriptError(
-                f"Truncation argument must be between {min} and {max} (inclusive), but "
-                f"is {truncation}."
-            )
 
     def ramp(self, t, duration, initial, final, samplerate, units=None, truncation=1.):
         """Command the output to perform a linear ramp.
@@ -1277,47 +1334,6 @@ class AnalogQuantity(Output):
             )
         return truncation * duration
 
-    def customramp(self, t, duration, function, *args, **kwargs):
-        """Define a custom function for the output.
-
-        Parameters
-        ----------
-        t : float
-            Time, in seconds, to start the function.
-        duration : float
-            Length in time, in seconds, to perform the function.
-        function : callable
-            Function handle that defines the output waveform. First argument is
-            the relative time from function start, in seconds.
-        *args
-            Arguments passed to `function`.
-        **kwargs
-            Keyword arguments pass to `function`. Standard kwargs common to other
-            output functions are: `units`, `samplerate`, and `truncation`. These
-            kwargs are optional, but will not be passed to `function` if present.
-
-        Returns
-        -------
-        float
-            Duration the function is to be evaluated for. Equivalent to
-            `truncation*duration`.
-        """
-        units = kwargs.pop("units", None)
-        samplerate = kwargs.pop("samplerate")
-        truncation = kwargs.pop("truncation", 1.)
-        self._check_truncation(truncation)
-
-        def custom_ramp_func(duration):
-            return lambda t_rel: function(t_rel, duration, *args, **kwargs)
-
-        if truncation > 0:
-            self._add_ramp(
-                t, duration, truncation * duration,
-                f"custom ramp: {function.__name__}", samplerate, units,
-                custom_ramp_func,
-            )
-        return truncation * duration
-
     def constant(self, t, value, units=None):
         """Set the output to a constant value at time `t`.
 
@@ -1349,6 +1365,8 @@ class AnalogOut(AnalogQuantity):
 
 class _StaticQuantity:
     """Members shared by outputs that hold one value for the whole shot."""
+
+    ramps_allowed = False
 
     def get_change_times(self):
         """Enforce no change times.
@@ -1535,10 +1553,30 @@ class DigitalQuantity(Output):
         else:
             self.go_low(t)
 
+    def customramp(self, t, duration, function, *args, invert=None, **kwargs):
+        """Define a custom function for the output, as :meth:`Output.customramp`
+        does, with values 0 or 1.
+
+        Parameters
+        ----------
+        invert : bool, optional
+            Whether to invert the ramp, as `enable` and `disable` invert. If `None`,
+            the output's `inverted`.
+        """
+        if self.inverted if invert is None else invert:
+            ramp = function
+
+            @functools.wraps(ramp)
+            def function(*args, **kwargs):
+                return 1 - ramp(*args, **kwargs)
+
+        return super().customramp(t, duration, function, *args, **kwargs)
+
     def repeat_pulse_sequence(self, t, duration, pulse_sequence, period, samplerate):
         """Repeat a pulse sequence from time `t` until `t+duration`.
 
-        This only works if the DigitalQuantity is on a fast clock.
+        This only works if the DigitalQuantity is on a fast clock. The states are
+        output as given, whatever the output's `inverted`.
 
         Parameters
         ----------
@@ -1572,20 +1610,14 @@ class DigitalQuantity(Output):
         of time points occurs (to fit in the update required to change the other
         output) your pulse sequence will not be significantly altered.
         """
-        self.add_instruction(
-            t,
-            {
-                "function": functions.pulse_sequence(pulse_sequence, period),
-                "description": "pulse sequence",
-                "initial time": t,
-                "end time": t + duration,
-                "span": duration,
-                "clock rate": samplerate,
-                "units": None,
-            }
-        )
+        pulses = functions.pulse_sequence(pulse_sequence, period)
 
-        return duration
+        def pulse_sequence_ramp(t, duration):
+            return pulses(t)
+
+        return self.customramp(
+            t, duration, pulse_sequence_ramp, samplerate=samplerate, invert=False
+        )
 
 
 class DigitalOut(DigitalQuantity):
@@ -1674,6 +1706,7 @@ class Shutter(DigitalOut):
     """
 
     description = "shutter"
+    ramps_allowed = False
 
     @set_passed_properties(
         property_names={"connection_table_properties": ["open_state"]}
@@ -1814,6 +1847,7 @@ class Trigger(DigitalOut):
 
     description = "trigger device"
     allowed_children = [TriggerableDevice]
+    ramps_allowed = False
 
     @set_passed_properties(property_names={})
     def __init__(

@@ -289,6 +289,47 @@ class CompileTests(unittest.TestCase):
         with h5py.File(self.run_file, 'r') as f:
             self.assertEqual(set(f['devices/dds_device/phase'][()]), {0})
 
+    def test_a_digital_output_ramps_and_its_inverse_mirrors_it(self):
+        outputs = textwrap.dedent(
+            '''
+            DigitalOut(name='plain', parent_device=intermediate_device,
+                       connection='port0/line2')
+            DigitalOut(name='inverse', parent_device=intermediate_device,
+                       connection='port0/line3', inverted=True)
+
+            def square(t, duration):
+                return (t % 0.02) < 0.01
+            '''
+        )
+        ramps = textwrap.dedent(
+            '''
+            plain.customramp(0.5, 0.1, square, samplerate=1e3)
+            inverse.customramp(0.5, 0.1, square, samplerate=1e3)
+            '''
+        )
+        script = SHOT.replace('t = 0\n', outputs + 't = 0\n')
+        with open(self.script, 'w') as f:
+            f.write(script.replace('start()\n', 'start()\n' + ramps))
+        self.compile_the_shot()
+        with h5py.File(self.run_file, 'r') as f:
+            values = f['devices/intermediate_device/OUTPUTS'][()]
+        plain, inverse = values['plain'], values['inverse']
+        self.assertEqual(set(plain), {0, 1})
+        # Both hold the default, 0, until the ramp, and are each other's inverse
+        # from then on:
+        both = plain + inverse
+        self.assertEqual(list(both), sorted(both))
+        self.assertEqual(set(both), {0, 1})
+
+        with h5py.File(self.run_file, 'w') as f:
+            f.create_group('globals')
+        with open(self.script, 'w') as f:
+            f.write(script.replace('start()\n', 'start()\n' + ramps.replace(
+                'square, samplerate', 'lambda t, duration: 0.7, samplerate', 1
+            )))
+        with self.assertRaisesRegex(labscript.LabscriptError, 'other than'):
+            self.compile_the_shot()
+
     def test_a_pseudoclock_device_may_not_record_its_own_stop_time(self):
         own_stop_time = textwrap.dedent(
             '''
