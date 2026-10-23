@@ -1624,19 +1624,24 @@ class DigitalQuantity(Output):
     def _repeat_pulses(self, t, duration, pulse_sequence, period, samplerate, invert):
         """Repeat `pulse_sequence`, of `(time, state)` pairs, every `period` from
         `t`."""
+        if not period > 0:
+            raise LabscriptError(
+                f"{self.description} {self.name}'s period must be positive, not "
+                f"{period}."
+            )
         # A relative tolerance well above the float error of the product:
         samples = period * samplerate
         if (
             abs(samples - round(samples)) > 1e-9 * samples
             and not compiler.suppress_all_warnings
         ):
-            fewer, more = max(1, int(samples)), int(samples) + 1
+            periods = {max(1, int(samples)), int(samples) + 1}
+            periods = " or ".join(f"{n / samplerate} s" for n in sorted(periods))
             sys.stderr.write(
                 f"WARNING: {self.description} {self.name} repeats pulses every "
                 f"{period} s, which is {samples:g} samples at {samplerate} Hz. "
                 "Since that is not a whole number, its pulses will not repeat "
-                f"exactly. A period of {fewer / samplerate} s or {more / samplerate} "
-                "s would.\n"
+                f"exactly. A period of {periods} would.\n"
             )
         pulses = functions.pulse_sequence(pulse_sequence, period)
 
