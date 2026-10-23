@@ -945,15 +945,18 @@ class PseudoclockDevice(TriggerableDevice):
         self.stop_time = self.quantise_to_pseudoclock(self.stop_time)
 
     def set_property(self, name, value, location=None, overwrite=False):
-        reserved = name in ('is_master_pseudoclock', 'stop_time')
-        if reserved and location == 'device_properties':
-            if name in getattr(self, '_properties', {}).get(location, ()):
-                raise LabscriptError(
-                    f"{type(self).__name__} sets the device property {name}, which "
-                    "labscript records for every pseudoclock device. Delete the "
-                    "set_property call that sets it; see the PseudoclockDevice "
-                    "documentation."
-                )
+        if (
+            name in ('is_master_pseudoclock', 'stop_time')
+            and location == 'device_properties'
+            and self._properties is not None
+            and name in self._properties[location]
+        ):
+            raise LabscriptError(
+                f"{type(self).__name__} sets the device property {name}, which "
+                "labscript records for every pseudoclock device. Delete the "
+                "set_property call that sets it; see the PseudoclockDevice "
+                "documentation."
+            )
         super().set_property(name, value, location, overwrite)
 
     def generate_code(self, hdf5_file):

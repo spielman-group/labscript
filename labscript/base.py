@@ -58,6 +58,9 @@ class Device:
     allowed_children = None
     """list: Defines types of devices that are allowed to be children of this device."""
 
+    # Device.__init__ makes the properties, one dict per location:
+    _properties = None
+
     @set_passed_properties(
         property_names = {"device_properties": ["added_properties"]}
     )
@@ -213,7 +216,7 @@ class Device:
                 f"for property {name}"
             )
 
-        if not hasattr(self, "_properties"):
+        if self._properties is None:
             raise LabscriptError(
                 f"{type(self).__name__} sets the property {name} before calling "
                 "Device.__init__, which creates the device's properties. Set it after."
