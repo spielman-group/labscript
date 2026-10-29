@@ -14,7 +14,7 @@
 """Utility functions"""
 
 import contextlib
-from inspect import getcallargs
+from inspect import signature
 from functools import wraps
 import warnings
 
@@ -61,11 +61,15 @@ def set_passed_properties(property_names=None):
     property_names = property_names or {}
 
     def decorator(func):
+        func_signature = signature(func, follow_wrapped=False)
+
         @wraps(func)
         def new_function(inst, *args, **kwargs):
             return_value = func(inst, *args, **kwargs)
 
-            call_values = getcallargs(func, inst, *args, **kwargs)
+            bound_arguments = func_signature.bind(inst, *args, **kwargs)
+            bound_arguments.apply_defaults()
+            call_values = bound_arguments.arguments
 
             # In declaration order, so that a shot file's bytes are reproducible:
             all_property_names = dict.fromkeys(
