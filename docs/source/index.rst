@@ -33,4 +33,3 @@ labscript |version|
    Source Code <https://github.com/labscript-suite/labscript>
    PyPI <https://pypi.org/project/labscript/>
    Anaconda Cloud <https://anaconda.org/labscript-suite/labscript>
-   BitBucket Archive <http://bitbucket-archive.labscriptsuite.org/#!/labscript_suite/labscript>

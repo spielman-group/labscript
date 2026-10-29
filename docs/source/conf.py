@@ -10,6 +10,7 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
+import datetime
 import os
 from pathlib import Path
 from jinja2 import FileSystemLoader, Environment
@@ -18,7 +19,7 @@ import importlib.metadata
 # -- Project information (unique to each project) -------------------------------------
 
 project = "labscript"
-copyright = "2020, labscript suite"
+copyright = f"2013–{datetime.date.today().year}, labscript suite contributors"
 author = "labscript suite contributors"
 
 version = importlib.metadata.version('labscript')
@@ -80,18 +81,17 @@ intersphinx_mapping = {
     'scipy': ('https://docs.scipy.org/doc/scipy/', None),
     'pandas': ('https://pandas.pydata.org/pandas-docs/stable/', None),
     'qtutils': ('https://qtutils.readthedocs.io/en/stable/', None),
-    'pyqtgraph': (
-        'https://pyqtgraph.readthedocs.io/en/latest/',
-        None,
-    ),
+    'pyqtgraph': ('https://pyqtgraph.readthedocs.io/en/latest/', None),
     'matplotlib': ('https://matplotlib.org/stable/', None),
     'h5py': ('https://docs.h5py.org/en/stable/', None),
-    'pydaqmx': ('https://pythonhosted.org/PyDAQmx/', None),
+    # A PyQt5 inventory, which is also used for PyQt6 and PySide6, because the names of
+    # the Qt classes are the same in all three bindings. The inventory is made by
+    # https://github.com/MSLNZ/msl-qt/blob/master/docs/create_pyqt_objects.py, which is
+    # under the MIT License.
     'qt': (
         'https://www.riverbankcomputing.com/static/Docs/PyQt6/',
         'pyqt6-modified-objects.inv',
-    ),  # PyQt6's classes with short aliases, after MSLNZ/msl-qt's
-    # create_pyqt_objects.py (MIT License)
+    ),
 }
 
 # list of all labscript suite components that have docs
@@ -176,7 +176,7 @@ default_role = 'code'
 html_theme = "sphinx_rtd_theme"
 html_title = "labscript suite | {project}".format(
     project=project
-    if project != "labscript-suite"
+    if project != "the labscript suite"
     else "experiment control and automation"
 )
 html_short_title = "labscript suite"
