@@ -2364,12 +2364,27 @@ class StaticDDS(_DDSBase):
     """Static DDS class for use with all devices that have static DDS-like outputs.
 
     Its frequency, amplitude and phase hold one value for the whole shot,
-    programmed before it starts, so its setters take no time.
+    programmed before it starts, so its setters take no time. Its gate is timed,
+    and `enable` and `disable` with no time act from the start of the shot.
     """
 
     description = "Static RF"
     allowed_children = [StaticAnalogQuantity, DigitalOut, StaticDigitalOut]
     channel_class = StaticAnalogQuantity
+
+    def enable(self, t=None):
+        """Enable the output at `t`, or from the start of the shot if `t` is
+        `None`."""
+        if t is None and self.gate is not None:
+            t = self.gate.t0
+        super().enable(t)
+
+    def disable(self, t=None):
+        """Disable the output at `t`, or from the start of the shot if `t` is
+        `None`."""
+        if t is None and self.gate is not None:
+            t = self.gate.t0
+        super().disable(t)
 
     def setamp(self, value, units=None):
         """Set the static amplitude of the output.

@@ -364,6 +364,31 @@ class CompileTests(unittest.TestCase):
             ))
         self.compile_the_shot()
 
+    def test_a_static_dds_enabled_with_no_time_is_enabled_from_the_start(self):
+        static_dds = textwrap.dedent(
+            '''
+            from labscript import StaticDDS
+            from labscript_devices.NovaTechDDS9M import NovaTechDDS9M
+
+            NovaTechDDS9M(
+                name='novatech', parent_device=pseudoclock.clockline, com_port='C'
+            )
+            StaticDDS(
+                name='static_dds', parent_device=novatech, connection='dds 2',
+                digital_gate={
+                    'device': intermediate_device, 'connection': 'port0/line5'
+                },
+            )
+            '''
+        )
+        script = SHOT.replace('t = 0\n', static_dds + 't = 0\n')
+        with open(self.script, 'w') as f:
+            f.write(script.replace('start()\n', 'start()\nstatic_dds.enable()\n'))
+        self.compile_the_shot()
+        with h5py.File(self.run_file, 'r') as f:
+            gate = f['devices/intermediate_device/OUTPUTS']['static_dds_gate']
+        self.assertEqual(gate[0], 1)
+
     def test_a_pseudoclock_device_may_not_record_its_own_stop_time(self):
         own_stop_time = textwrap.dedent(
             '''
