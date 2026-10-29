@@ -620,6 +620,9 @@ class TriggerableDevice(Device):
     """str: Type of trigger. Must be `'rising'` or `'falling'`."""
     minimum_recovery_time = 0
     """float: Minimum time required before another trigger can occur."""
+    trigger_device = None
+    """:obj:`Trigger`: The trigger this device is attached to, or `None` if it is
+    parentless."""
 
     @set_passed_properties(property_names={})
     def __init__(self, name, parent_device, connection, parentless=False, **kwargs):
@@ -654,7 +657,7 @@ class TriggerableDevice(Device):
         if isinstance(parent_device, Trigger):
             if self.trigger_edge_type != parent_device.trigger_edge_type:
                 raise LabscriptError(
-                    f"Trigger edge type for {name} is {self.trigger_edge_type}', but "
+                    f"Trigger edge type for {name} is '{self.trigger_edge_type}', but "
                     f"existing Trigger object {parent_device.name} has edge type "
                     f"'{parent_device.trigger_edge_type}'"
                 )
@@ -680,6 +683,11 @@ class TriggerableDevice(Device):
         duration : float
             Duration, in seconds, of the trigger pulse.
         """
+        if self.trigger_device is None:
+            raise LabscriptError(
+                f"{self.description} {self.name} has no trigger device, so it cannot "
+                "be triggered."
+            )
         # On the tick of the clock that fires the trigger, so that requests from
         # devices sharing it compare equal:
         t = self.trigger_device._round_time(t)
@@ -724,6 +732,8 @@ class TriggerableDevice(Device):
         LabscriptError
             If correct triggers do not exist for all devices.
         """
+        if self.trigger_device is None:
+            return
         for device in self.trigger_device.child_devices:
             if device is not self:
                 for trigger in self.__triggers:
@@ -909,6 +919,7 @@ class PseudoclockDevice(TriggerableDevice):
         outputs : list
             List of outputs to check.
         """
+        TriggerableDevice.do_checks(self)
         for output in outputs:
             output.do_checks(self.trigger_times)
 
