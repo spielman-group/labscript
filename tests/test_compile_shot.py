@@ -21,7 +21,7 @@ SHOT = textwrap.dedent(
     from labscript_devices.DummyPseudoclock.labscript_devices import (
         DummyPseudoclock,
     )
-    from labscript_devices.DummyIntermediateDevice import (
+    from labscript_devices.DummyIntermediateDevice.labscript_devices import (
         DummyIntermediateDevice,
     )
 
@@ -197,11 +197,11 @@ class CompileTests(unittest.TestCase):
             from labscript_devices.DummyPseudoclock.labscript_devices import (
                 DummyPseudoclock,
             )
-            from labscript_devices.DummyIntermediateDevice import (
+            from labscript_devices.DummyIntermediateDevice.labscript_devices import (
                 DummyIntermediateDevice,
             )
-            from labscript_devices.PineBlaster import PineBlaster
-            from labscript_devices.NovaTechDDS9M import NovaTechDDS9M
+            from labscript_devices.PineBlaster.labscript_devices import PineBlaster
+            from labscript_devices.NovaTechDDS9M.labscript_devices import NovaTechDDS9M
 
             DummyPseudoclock(name='pseudoclock')
             DummyIntermediateDevice(
@@ -368,7 +368,7 @@ class CompileTests(unittest.TestCase):
         static_dds = textwrap.dedent(
             '''
             from labscript import StaticDDS
-            from labscript_devices.NovaTechDDS9M import NovaTechDDS9M
+            from labscript_devices.NovaTechDDS9M.labscript_devices import NovaTechDDS9M
 
             NovaTechDDS9M(
                 name='novatech', parent_device=pseudoclock.clockline, com_port='C'
