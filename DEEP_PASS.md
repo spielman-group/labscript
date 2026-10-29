@@ -27,13 +27,16 @@ merged. Each commit credits its upstream source.
 | `9b4252c` | `StaticDDS.enable` and `disable` with no time act from the start of the shot (Ian), with a test | `4549021` |
 | `a37f97c` | `round_time` rounds a scalar time to 0.1 ns; the stop-time gap uses it, the array checks keep `np.round` | `ceb469f` |
 | `86d1195` | Trigger offsets precomputed, and each time's found by bisection over the same tick test; identical to the loop on 122,730 times | `f5fd7eb` |
+| `e779ec3` | A device may not take a name that `from labscript import *` defines, checked against a cached set, with a test | `0f5ab3b`, `8b0349a` |
 
-## Not possible
+## Offered upstream
 
-- `8b0349a`'s cache of labscript's names: the fork's name check reads the
-  namespace dict directly and builds no set to cache.
+`UpstreamBugFixes` (`22af9d2`, on `b0c132c`) offers the fork's one shared
+`_check_name` for device and global names, which upstream checks in two places
+with different messages.
 
-The rest of upstream's commits were already in the fork in other forms.
+Every other upstream commit is ported or was already in the fork in another
+form.
 
 ## Checks
 
@@ -49,3 +52,5 @@ The rest of upstream's commits were already in the fork in other forms.
 - `StaticDDS`, `round_time` and the bisection compile every shot in the sweep
   identically: `e8605c2` against `86d1195`, 84 identical and 41 same refusal of
   125.
+- The device-name check compiles every shot in the sweep identically: `e1b89e0`
+  against `e779ec3`, 84 identical and 41 same refusal of 125.
