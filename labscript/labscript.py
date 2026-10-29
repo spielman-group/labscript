@@ -84,6 +84,11 @@ else:
 
 
 class WaitMonitor(Trigger):
+    """A digital output that produces a pulse when the master pseudoclock starts and
+    each time that it resumes after a wait, with the input that measures the time
+    between the pulses and, optionally, the output that resumes the master
+    pseudoclock when a wait reaches its timeout. An experiment can have one wait
+    monitor."""
 
     @set_passed_properties(property_names={})
     def __init__(
@@ -438,10 +443,12 @@ def _run_vcs_commands(path):
 
 
 def save_labscripts(hdf5_file):
-    """Write the script files for the compiled shot to the shot file.
+    """Writes the experiment script and every imported module of `labscriptlib` to
+    the shot file.
 
-    If the labconfig `save_hg_info` or `save_git_info` options are `True`, also
-    saves hg or git output for each labscriptlib module as attributes.
+    If the `save_hg_info` or `save_git_info` labconfig option is `True`, the output
+    of hg or git commands on each module of `labscriptlib` is saved as attributes of
+    the dataset of that module.
 
     Parameters
     ----------
@@ -905,8 +912,20 @@ def stop(t, target_cycle_time=None, cycle_time_delay_after_programming=False):
 
 
 def load_globals(hdf5_filename):
-    """Load the globals of a shot file into the builtins used by the experiment
-    script."""
+    """Makes the globals of a shot file available to the experiment script as
+    builtins.
+
+    Parameters
+    ----------
+    hdf5_filename : str
+        Path to the shot file.
+
+    Raises
+    ------
+    LabscriptError
+        If the name of a global is already a name in the `labscript` module or a
+        builtin, is a Python keyword, or is not a valid Python identifier.
+    """
     import labscript_utils.shot_utils
     params = labscript_utils.shot_utils.get_shot_globals(hdf5_filename)
     for name, value in params.items():
@@ -922,11 +941,13 @@ def labscript_init(hdf5_filename, labscript_file=None, new=False, overwrite=Fals
     hdf5_filename : str
         Path to shot file to compile.
     labscript_file : str, optional
-        Path to the labscript file. If `None`, the file of the `__main__` module.
+        Path to the experiment script. If `None`, the path of the `__main__` module.
     new : bool, optional
-        If `True`, ensure a new shot file is created.
+        If `True`, the shot file is created when the shot is compiled, and is not
+        required to exist. If `False`, the shot file must exist, and its globals are
+        loaded with :func:`load_globals`.
     overwrite : bool, optional
-        If `True`, overwrite existing shot file, if it exists.
+        If `True` and `new` is `True`, delete the shot file if it exists.
 
     Raises
     ------

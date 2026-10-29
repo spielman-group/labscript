@@ -104,23 +104,24 @@ class Device:
         connection : str
             Connection on this device that links to parent.
         call_parents_add_device : bool, optional
-            Flag to command device to call its parent device's add_device when
-            adding a device.
+            If `True`, call ``parent_device.add_device(self)``. A subclass that
+            passes `False` must call it later in its own `__init__`.
         added_properties : dict, optional
-            Saved with the device properties in the shot file.
-        gui : :obj:`_RemoteConnection`, optional
-            Remote connection that runs the BLACS GUI for this device. If `worker` is
-            not given, it is also the worker.
-        worker : :obj:`_RemoteConnection`, optional
-            Remote connection that runs the worker for this device. Must be `gui`, or
-            a child of it (of the primary BLACS if `gui` is not given).
+            Saved in the shot file as the device property `added_properties`.
+        gui : :obj:`RemoteBLACS <labscript.remote.RemoteBLACS>`, optional
+            The BLACS that shows the device's tab. BLACS does not support remote
+            GUIs, and raises an error for a device with a `gui` other than the main
+            BLACS.
+        worker : :obj:`RemoteBLACS <labscript.remote.RemoteBLACS>`, optional
+            The computer on which BLACS runs the device's worker process. If `gui` is
+            given and `worker` is not, `worker` is `gui`.
         start_order : int, optional
             Priority when starting, sorted with all devices.
         stop_order : int, optional
             Priority when stopping, sorted with all devices; lowest stops first.
             The default is 0, or -1 for a pseudoclock device.
         **kwargs
-            Other options to pass to parent.
+            Must be empty. Any other keyword argument raises `LabscriptError`.
         """
         if len(kwargs) != 0:
             raise LabscriptError(

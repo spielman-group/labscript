@@ -61,7 +61,10 @@ class Output(Device):
         connection : str
             Channel of parent device output is connected to.
         limits : tuple, optional
-            `(min,max)` allowed for the output.
+            `(min,max)` allowed for the output, in base units. When it compiles the
+            shot, labscript raises `LabscriptError` for an instruction with a value
+            outside the limits. The limits are not saved in the shot file, and BLACS
+            does not use them.
         unit_conversion_class : :obj:`labscript_utils:labscript_utils.unitconversions`, optional
             Unit conversion class to use for the output.
         unit_conversion_parameters : dict, optional
@@ -455,14 +458,18 @@ class Output(Device):
         duration : float
             Length in time, in seconds, to perform the function.
         function : callable
-            Function handle that defines the output waveform. First argument is
-            the relative time from function start, in seconds.
+            Function that defines the output waveform. It is called as
+            ``function(t_rel, duration, *args, **kwargs)``, where `t_rel` is the
+            time, in seconds, from the start of the ramp.
         *args
             Arguments passed to `function`.
         **kwargs
-            Keyword arguments pass to `function`. Standard kwargs common to other
-            output functions are: `units`, `samplerate`, and `truncation`. These
-            kwargs are optional, but will not be passed to `function` if present.
+            Keyword arguments passed to `function`, except `samplerate`, `units` and
+            `truncation`, which are used by this method and not passed to `function`.
+            `samplerate` (float), the rate, in Hz, at which to update the output, is
+            required. `units` is optional, and is the units of the output values, as
+            specified by the unit conversion class. `truncation` is optional, and is
+            the fraction of the ramp to perform, from 0 to 1.
 
         Returns
         -------
@@ -957,9 +964,8 @@ class AnalogQuantity(Output):
     def sine4_reverse_ramp(
         self, t, duration, initial, final, samplerate, units=None, truncation=1.
     ):
-        """Command the output to perform `sine4_ramp` backwards in time.
-
-        The output goes from `final` at `t` to `initial` at `t+duration`.
+        """Command the output to perform the time reverse of :meth:`sine4_ramp`: a
+        ramp from `final` at time `t` to `initial` at time `t+duration`.
 
         Defined by
         `f(t) = (final-initial)*(sin(pi/2+pi*t/(2*duration)))^4 + initial`

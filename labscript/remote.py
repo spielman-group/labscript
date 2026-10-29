@@ -34,21 +34,28 @@ class _RemoteConnection(Device):
 
 
 class RemoteBLACS(_RemoteConnection):
-    """A remote BLACS instance, reached at `host`:`port`."""
+    """A computer on which BLACS runs the worker processes of devices.
+
+    Pass it as the `worker` argument of a device. The computer must run the zprocess
+    remote server, which ``python -m labscript_utils.remote`` starts. BLACS does not
+    support a `RemoteBLACS` as the `gui` argument of a device, or a `RemoteBLACS`
+    with a parent.
+    """
 
     def __init__(self, name, host, port=7341, parent=None):
-        """Instantiates a RemoteBLACS.
+        """Creates a RemoteBLACS.
 
         Parameters
         ----------
         name : str
             Python variable name to assign this connection to.
         host : str
-            Host name or address of the remote BLACS.
+            Host name or IP address of the computer.
         port : int, optional
-            Port of the remote BLACS.
+            Port of the zprocess remote server on the computer.
         parent : :obj:`RemoteBLACS`, optional
-            Parent connection. If `None`, a hidden top-level BLACS is the parent.
+            Remote connection through which this one is reached. If `None`, a hidden
+            top-level BLACS is the parent.
         """
         super().__init__(name, parent, f"{host}:{port}")
 

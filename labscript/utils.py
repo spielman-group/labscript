@@ -174,24 +174,21 @@ def fastflatten(inarray, dtype):
 
 
 def max_or_zero(*args, **kwargs):
-    """Returns max of the arguments or zero if sequence is empty.
+    """Returns the largest item of a sequence, or zero if the sequence is empty.
 
     Deprecated: use ``max(..., default=0)``.
-
-    This protects the call to `max()` which would normally throw an error on an empty
-    sequence.
 
     Parameters
     ----------
     *args
-        Items to compare.
+        One sequence of items to compare.
     **kwargs
         Passed to `max()`.
 
     Returns
     -------
     object
-        Max of ``*args``, or 0 if empty.
+        The largest item of the sequence, or 0 if it is empty.
     """
     warnings.warn(
         "max_or_zero will be removed from labscript; use max(..., default=0).",

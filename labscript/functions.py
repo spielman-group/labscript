@@ -121,7 +121,8 @@ def sine4_ramp(duration, initial, final):
 
 
 def sine4_reverse_ramp(duration, initial, final):
-    """Defines `sine4_ramp` run backwards in time: from `final` to `initial`.
+    """Defines the time reverse of :func:`sine4_ramp`: a ramp from `final` at
+    `t = 0` to `initial` at `t = duration`.
 
     f(t) = (final-initial)*(sin(pi/2+pi*t/(2*duration)))^4 + initial
 
@@ -130,9 +131,9 @@ def sine4_reverse_ramp(duration, initial, final):
     duration : float
         Length of time for the ramp to complete.
     initial : float
-        Value the ramp ends at.
+        Value at the end of the ramp, `t = duration`.
     final : float
-        Value the ramp starts at.
+        Value at the start of the ramp, `t = 0`.
 
     Returns
     -------
@@ -242,25 +243,28 @@ def piecewise_accel(duration, initial, final):
 
 
 def square_wave(duration, level_0, level_1, frequency, phase, duty_cycle):
-    """Defines a square wave that is `level_0` for the first part of each period.
+    """Defines a square wave.
 
-    The output is `level_0` for phases in [0, `duty_cycle`) and `level_1` for the
-    rest of the period, where the phase is ``(frequency*t + phase) % 1``.
+    The output is `level_0` for the part of each period in which the phase is from 0
+    to `duty_cycle`, and `level_1` for the rest of the period. The phase at time `t`
+    is ``(frequency*t + phase) % 1``. A phase that is closer to a transition than
+    half of the phase change in 0.1 ns is rounded to the transition, so that the
+    output changes there.
 
     Parameters
     ----------
     duration : float
         Not used.
     level_0 : float
-        Output value at the start of each period.
+        Output value in the first part of each period.
     level_1 : float
-        Output value from `duty_cycle` to the end of each period.
+        Output value in the second part of each period.
     frequency : float
-        Frequency of the wave.
+        Frequency, in Hz.
     phase : float
-        Phase of the wave, in periods (1 is a full period, not 2*pi).
+        Phase at `t = 0`, as a fraction of a period, from 0 to 1.
     duty_cycle : float
-        Fraction of each period, between 0 and 1, spent at `level_0`.
+        Fraction of each period, from 0 to 1, for which the output is `level_0`.
 
     Returns
     -------
