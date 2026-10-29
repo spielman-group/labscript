@@ -258,12 +258,7 @@ class Output(Device):
             if units is not None:
                 instruction = self.apply_calibration(instruction, units)
             if self.limits:
-                if (instruction < self.limits[0]) or (instruction > self.limits[1]):
-                    raise LabscriptError(
-                        f"You cannot program the value {instruction} (base units) to "
-                        f"{self.name} as it falls outside the limits "
-                        f"({self.limits[0]} to {self.limits[1]})"
-                    )
+                instruction = self.apply_limits(instruction, time)
             if not self._in_allowed_states(instruction):
                 raise LabscriptError(
                     f"You cannot program the value {instruction} to {self.name} as "
@@ -393,6 +388,34 @@ class Output(Device):
                 "units": units,
             },
         )
+
+    # Values beyond the limits by this fraction of the limit range or less are
+    # clipped to them, so that float round-off in a ramp that ends at a limit does
+    # not fail the check.
+    LIMITS_TOLERANCE = 1e-9
+
+    def apply_limits(self, values, t, function=None):
+        """Return `values`, in base units, clipped to `limits`, or raise
+        `LabscriptError` if any is beyond them by more than `LIMITS_TOLERANCE` of
+        their range. `function` names the ramp the values came from, if any."""
+        lower, upper = self.limits
+        tolerance = self.LIMITS_TOLERANCE * (upper - lower)
+        array = np.asarray(values)
+        if (array < lower - tolerance).any() or (array > upper + tolerance).any():
+            if function is not None:
+                raise LabscriptError(
+                    f'The function {function} called on "{self.name}" at t={t} '
+                    f"generated values from {array.min()} to {array.max()} (base "
+                    f"units), which fall outside the limits ({lower} to {upper})"
+                )
+            raise LabscriptError(
+                f'The value {values} (base units) programmed to "{self.name}" at '
+                f"t={t} falls outside the limits ({lower} to {upper})"
+            )
+        if (array < lower).any() or (array > upper).any():
+            clipped = np.clip(array, lower, upper)
+            return clipped.item() if clipped.ndim == 0 else clipped
+        return values
 
     def _in_allowed_states(self, values):
         """Whether all of `values` are allowed states, or the output has none."""
@@ -696,15 +719,9 @@ class Output(Device):
                             outarray, self.timeseries[i]["units"]
                         )
                     if self.limits:
-                        if (
-                            (outarray < self.limits[0]) | (outarray > self.limits[1])
-                        ).any():
-                            raise LabscriptError(
-                                f"The function {self.timeseries[i]['function']} called "
-                                f'on "{self.name}" at t={midpoints[0]} generated a '
-                                "value which falls outside the base unit limits "
-                                f"({self.limits[0]} to {self.limits[1]})"
-                            )
+                        outarray = self.apply_limits(
+                            outarray, midpoints[0], self.timeseries[i]["function"]
+                        )
                     if not self._in_allowed_states(outarray):
                         raise LabscriptError(
                             f"The function {self.timeseries[i]['function']} called "
@@ -1458,13 +1475,7 @@ class StaticAnalogQuantity(_StaticQuantity, Output):
             if units is not None:
                 value = self.apply_calibration(value, units)
             if self.limits:
-                minval, maxval = self.limits
-                if not minval <= value <= maxval:
-                    raise LabscriptError(
-                        f"You cannot program the value {value} (base units) to "
-                        f"{self.name} as it falls outside the limits "
-                        f"({self.limits[0]} to {self.limits[1]})"
-                    )
+                value = self.apply_limits(value, 0)
             self._static_value = value
         else:
             raise LabscriptError(
