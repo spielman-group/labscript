@@ -389,6 +389,13 @@ class CompileTests(unittest.TestCase):
             gate = f['devices/intermediate_device/OUTPUTS']['static_dds_gate']
         self.assertEqual(gate[0], 1)
 
+    def test_a_device_may_not_take_a_name_from_labscript(self):
+        # `from labscript import *` would shadow the device in the script.
+        with open(self.script, 'w') as f:
+            f.write(SHOT.replace("name='analog_out'", "name='ms'"))
+        with self.assertRaisesRegex(labscript.LabscriptError, 'from labscript import'):
+            self.compile_the_shot()
+
     def test_a_pseudoclock_device_may_not_record_its_own_stop_time(self):
         own_stop_time = textwrap.dedent(
             '''

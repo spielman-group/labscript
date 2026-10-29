@@ -14,6 +14,7 @@
 """The labscript base class for all I/O/Device classes"""
 
 import keyword
+from functools import cache
 
 import numpy as np
 
@@ -26,11 +27,25 @@ from .utils import (
 )
 
 
+@cache
+def _labscript_names():
+    """The names that `from labscript import *` defines. A device cannot have one of
+    these names, because the device is placed in builtins, and a module-level name
+    shadows a builtin."""
+    import labscript
+    return frozenset(name for name in vars(labscript) if not name.startswith('_'))
+
+
 def _check_name(name, namespace, kind):
     """Raise unless `name` can be put into builtins as the name of a new `kind`."""
-    if name in namespace or name in _builtins_dict:
+    if name in _builtins_dict:
         raise LabscriptError(
-            f"{name} is already a name used by Python or labscript. "
+            f"{name} is already a name used by Python. "
+            f"Please choose another name for this {kind}."
+        )
+    if name in namespace:
+        raise LabscriptError(
+            f"{name} is defined by `from labscript import *`. "
             f"Please choose another name for this {kind}."
         )
     if keyword.iskeyword(name):
@@ -142,7 +157,7 @@ class Device:
             # they must then call themselves.
             parent_device.add_device(self)
 
-        _check_name(name, globals(), self.__class__.__name__)
+        _check_name(name, _labscript_names(), self.__class__.__name__)
         # Put self into the global namespace:
         _builtins_dict[name] = self
 
