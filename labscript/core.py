@@ -177,6 +177,24 @@ class Pseudoclock(Device):
             )
         super().add_device(device)
 
+    def _outputs_with_instructions_at(self, outputs, *times):
+        """Text for an error naming the outputs with an instruction at each of
+        `times`, or an empty string if none has."""
+        lines = []
+        for t in times:
+            names = [
+                output.name
+                for output in outputs
+                if any(
+                    abs(instruction_time - t) <= self.clock_resolution
+                    for instruction_time in output.instructions
+                )
+            ]
+            if names:
+                names = ", ".join(names)
+                lines.append(f"Outputs with an instruction at t={t}: {names}.")
+        return "".join(" " + line for line in lines)
+
     def collect_change_times(self, all_outputs, outputs_by_clockline):
         """Asks all connected outputs for a list of times that they change state.
 
@@ -252,6 +270,9 @@ class Pseudoclock(Device):
                     f"{self.name} at t={t} and t={all_change_times[i+1]}. "
                     "This Pseudoclock cannot support update delays shorter "
                     f"than {1.0/self.clock_limit} seconds."
+                    + self._outputs_with_instructions_at(
+                        all_outputs, t, all_change_times[i+1]
+                    )
                 )
 
         # For each clockline, make sure there is a change time for triggers,
@@ -285,6 +306,9 @@ class Pseudoclock(Device):
                         "devices cannot support update delays shorter than "
                         f"{1.0/clock_line.clock_limit} seconds. Please set the "
                         "stop_time a bit later."
+                        + self._outputs_with_instructions_at(
+                            outputs_by_clockline[clock_line], change_time_list[-1]
+                        )
                     )
 
                 change_time_list.append(self.parent_device.stop_time)
@@ -306,7 +330,10 @@ class Pseudoclock(Device):
                         f"t={change_time_list[i+1]}. One or more connected "
                         f"devices on ClockLine {clock_line.name} cannot "
                         "support update delays shorter than "
-                        f"{1.0/clock_line.clock_limit} seconds"
+                        f"{1.0/clock_line.clock_limit} seconds."
+                        + self._outputs_with_instructions_at(
+                            all_outputs, t, change_time_list[i+1]
+                        )
                     )
 
                 all_change_times_len = len(all_change_times)
@@ -328,6 +355,9 @@ class Pseudoclock(Device):
                         "than half the available time between the event at "
                         f"t={t} on ClockLine {clock_line.name} and the next "
                         "event on another ClockLine."
+                        + self._outputs_with_instructions_at(
+                            all_outputs, t, all_change_times[j+1]
+                        )
                     )
 
             # because we made the list into a set and back to a list, it is now
