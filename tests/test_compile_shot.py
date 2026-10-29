@@ -332,6 +332,27 @@ class CompileTests(unittest.TestCase):
         with self.assertRaisesRegex(labscript.LabscriptError, r'\[0, 1\]'):
             self.compile_the_shot()
 
+    def test_the_last_tick_is_long_enough_for_the_slowest_clock_line(self):
+        # The tick at stop_time clocks out every clock line's last sample, so a
+        # device on a slow line must see a whole period of its own.
+        slow = textwrap.dedent(
+            '''
+            class SlowDevice(DummyIntermediateDevice):
+                clock_limit = 1e4
+
+            SlowDevice(name='slow_device', parent_device=pseudoclock.clockline)
+            AnalogOut(name='slow_out', parent_device=slow_device, connection='ao0')
+            '''
+        )
+        with open(self.script, 'w') as f:
+            f.write(SHOT.replace('t = 0\n', slow + 't = 0\n'))
+        self.compile_the_shot()
+        with h5py.File(self.run_file, 'r') as f:
+            # The last row is the stop instruction:
+            last = f['devices/pseudoclock/PULSE_PROGRAM'][-2]
+        # 100 us, at least, in 25 ns ticks:
+        self.assertGreaterEqual(last['period'], 4000)
+
     def test_a_pseudoclock_device_may_not_record_its_own_stop_time(self):
         own_stop_time = textwrap.dedent(
             '''

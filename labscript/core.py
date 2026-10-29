@@ -531,16 +531,26 @@ class Pseudoclock(Device):
                         )
                     # If stop_time equals the time of the last instruction, still
                     # output that instruction so the number of clock ticks matches the
-                    # number of points in the Output.raw_output arrays.
+                    # number of points in the Output.raw_output arrays. The tick is on
+                    # every clock line, so it meets every line's limits, as every other
+                    # tick does.
                     else:
-                        enabled_clocks = []
-                        for clock_line in outputs_by_clockline:
-                            enabled_clocks.append(clock_line)
+                        enabled_clocks = list(outputs_by_clockline)
+                        step = max(
+                            [1.0 / self.clock_limit]
+                            + [
+                                max(
+                                    1.0 / clock_line.clock_limit,
+                                    2 * clock_line.minimum_clock_high_time,
+                                )
+                                for clock_line in enabled_clocks
+                            ]
+                        )
                         clock.append(
                             {
                                 "start": time,
                                 "reps": 1,
-                                "step": 10.0/self.clock_limit,
+                                "step": step,
                                 "enabled_clocks": enabled_clocks,
                             }
                         )
