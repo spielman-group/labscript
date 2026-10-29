@@ -381,12 +381,25 @@ class Pseudoclock(Device):
         all_times = {}
         clock = []
         clock_line_current_indices = {}
+        # The ramp instructions on each clockline, by index in the clockline's change
+        # times:
+        ramps_by_clockline = {}
         for clock_line, outputs in outputs_by_clockline.items():
             clock_line_current_indices[clock_line] = 0
             all_times[clock_line] = []
+            ramps = {}
+            for output in outputs:
+                if not hasattr(output, "timeseries"):
+                    continue
+                for index, instruction in enumerate(output.timeseries):
+                    if isinstance(instruction, dict):
+                        ramps.setdefault(index, []).append(instruction)
+            ramps_by_clockline[clock_line] = ramps
+
+        wait_times = set(self.parent_device.trigger_times[1:])
 
         for i, time in enumerate(all_change_times):
-            if time in self.parent_device.trigger_times[1:]:
+            if time in wait_times:
                 # A wait instruction:
                 clock.append("WAIT")
 
@@ -427,25 +440,21 @@ class Pseudoclock(Device):
             maxrate = 0
             local_clock_limit = self.clock_limit  # the Pseudoclock clock limit
             for clock_line in enabled_clocks:
-                for output in outputs_by_clockline[clock_line]:
-                    if not hasattr(output, "timeseries"):
-                        continue
-                    # If the output is sweeping and has the highest clock rate so
-                    # far, store its clock rate as maxrate:
-                    output_instruction = output.timeseries[
-                        clock_line_current_indices[clock_line]
-                    ]
-                    if isinstance(output_instruction, dict):
-                        if clock_line not in enabled_looping_clocks:
-                            enabled_looping_clocks.append(clock_line)
+                # If an output is sweeping and has the highest clock rate so far,
+                # store its clock rate as maxrate:
+                for output_instruction in ramps_by_clockline[clock_line].get(
+                    clock_line_current_indices[clock_line], ()
+                ):
+                    if clock_line not in enabled_looping_clocks:
+                        enabled_looping_clocks.append(clock_line)
 
-                        if output_instruction["clock rate"] > maxrate:
-                            maxrate = output_instruction["clock rate"]
+                    if output_instruction["clock rate"] > maxrate:
+                        maxrate = output_instruction["clock rate"]
 
-                        # Only ramping clock_lines need checking here: non-ramping
-                        # ones had their clock_limit checked in collect_change_times()
-                        if local_clock_limit > clock_line.clock_limit:
-                            local_clock_limit = clock_line.clock_limit
+                    # Only ramping clock_lines need checking here: non-ramping
+                    # ones had their clock_limit checked in collect_change_times()
+                    if local_clock_limit > clock_line.clock_limit:
+                        local_clock_limit = clock_line.clock_limit
 
             if maxrate:
                 # round to the nearest clock rate the pseudoclock can actually support
@@ -465,9 +474,11 @@ class Pseudoclock(Device):
 
             if maxrate:
                 # If there was ramping at this timestep, how many clock ticks fit before
-                # the next instruction?
+                # the next instruction? The product is rounded to nine decimal places so
+                # that a count such as 10.999999999 from floating point round-off is
+                # eleven ticks and not ten with a remainder.
                 n_ticks, remainder = np.divmod(
-                    (all_change_times[i+1] - time)*maxrate, 1
+                    round((all_change_times[i+1] - time)*maxrate, 9), 1
                 )
                 n_ticks = int(n_ticks)
                 # Can we squeeze the final clock cycle in at the end?
