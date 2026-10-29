@@ -38,6 +38,22 @@ with different messages.
 Every other upstream commit is ported or was already in the fork in another
 form.
 
+## Compatibility kept
+
+None exists only for the fork's other tiers. Each kept form is upstream's or
+Ian's:
+
+- `config`, forwarding to `compiler` with a FutureWarning: upstream has
+  `config = compiler`; the warning is Ian's (`ea9c096`).
+- `no_warnings`, behaving as `suppress_all_warnings` with a FutureWarning:
+  upstream's alias; the warning is Ian's (`ea9c096`).
+- `max_or_zero`, with a FutureWarning: upstream's function; the warning is
+  Ian's (`cd41658`).
+- `repeat_pulse_sequence`, warning and calling `pulse_sequence_ramp`: Ian's
+  design, to be dropped later.
+- `exp_ramp` and `exp_ramp_t` accepting `trunc` and `trunc_type`: upstream
+  accepts them silently; the fork's FutureWarning (`c9affdf`) is its own.
+
 ## Checks
 
 - labscript's suite passes (14), and labscript-devices' (35, 1 skipped).
