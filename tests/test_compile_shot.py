@@ -353,6 +353,17 @@ class CompileTests(unittest.TestCase):
         # 100 us, at least, in 25 ns ticks:
         self.assertGreaterEqual(last['period'], 4000)
 
+    def test_stop_one_interval_after_the_last_instruction_compiles(self):
+        # The gap is one minimum update interval, whatever float noise the
+        # quantised times carry.
+        with open(self.script, 'w') as f:
+            f.write(SHOT.replace(
+                'stop(t)\n',
+                'digital_out.go_low(t)\n'
+                'stop(t + 1 / intermediate_device.parent_clock_line.clock_limit)\n',
+            ))
+        self.compile_the_shot()
+
     def test_a_pseudoclock_device_may_not_record_its_own_stop_time(self):
         own_stop_time = textwrap.dedent(
             '''

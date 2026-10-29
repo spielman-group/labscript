@@ -262,18 +262,19 @@ class Pseudoclock(Device):
         all_change_times.sort()
 
         # Check that the pseudoclock can handle updates this fast
-        for i, t in enumerate(all_change_times[:-1]):
-            dt = all_change_times[i+1] - t
-            if dt < 1.0/self.clock_limit:
-                raise LabscriptError(
-                    "Commands have been issued to devices attached to "
-                    f"{self.name} at t={t} and t={all_change_times[i+1]}. "
-                    "This Pseudoclock cannot support update delays shorter "
-                    f"than {1.0/self.clock_limit} seconds."
-                    + self._outputs_with_instructions_at(
-                        all_outputs, t, all_change_times[i+1]
-                    )
+        all_change_times_numpy = np.array(all_change_times)
+        dts = np.round(np.diff(all_change_times_numpy), 10)
+        for i in np.flatnonzero(dts < 1.0/self.clock_limit)[:1]:
+            t = all_change_times[i]
+            raise LabscriptError(
+                "Commands have been issued to devices attached to "
+                f"{self.name} at t={t} and t={all_change_times[i+1]}. "
+                "This Pseudoclock cannot support update delays shorter "
+                f"than {1.0/self.clock_limit} seconds."
+                + self._outputs_with_instructions_at(
+                    all_outputs, t, all_change_times[i+1]
                 )
+            )
 
         # For each clockline, make sure there is a change time for triggers,
         # stop_time and t=0, and check that no change times are too close together.
@@ -296,7 +297,7 @@ class Pseudoclock(Device):
             # Also add the stop time as as change time. First check that it
             # isn't too close to the time of the last instruction:
             if not self.parent_device.stop_time in change_time_list:
-                dt = self.parent_device.stop_time - change_time_list[-1]
+                dt = round(self.parent_device.stop_time - change_time_list[-1], 10)
                 if abs(dt) < 1.0/clock_line.clock_limit:
                     raise LabscriptError(
                         "The stop time of the experiment is "
@@ -318,12 +319,22 @@ class Pseudoclock(Device):
                 # with instructions after stop_time can report it in more detail.
                 change_time_list.sort()
 
-            # index to keep track of in all_change_times
-            j = 0
-            # Check that no two instructions are too close together:
-            for i, t in enumerate(change_time_list[:-1]):
-                dt = change_time_list[i+1] - t
-                if dt < 1.0/clock_line.clock_limit:
+            # Check that no two instructions are too close together, and that the
+            # next change time on any clockline is not so close that this clock tick
+            # would be shorter than the minimum clock high time:
+            change_times_numpy = np.array(change_time_list)
+            dts = np.round(np.diff(change_times_numpy), 10)
+            too_fast = dts < 1.0/clock_line.clock_limit
+            # Index in all_change_times of the change time after each change time on
+            # this clockline except the last:
+            starts = change_times_numpy[:-1]
+            next_indices = np.searchsorted(all_change_times_numpy, starts) + 1
+            too_short = np.round(
+                all_change_times_numpy[next_indices] - starts, 10
+            ) < (2 * clock_line.minimum_clock_high_time)
+            for i in np.flatnonzero(too_fast | too_short)[:1]:
+                t = change_time_list[i]
+                if too_fast[i]:
                     raise LabscriptError(
                         "Commands have been issued to devices attached to "
                         f"clockline {clock_line.name} at t={t} and "
@@ -335,30 +346,21 @@ class Pseudoclock(Device):
                             all_outputs, t, change_time_list[i+1]
                         )
                     )
-
-                all_change_times_len = len(all_change_times)
-                # increment j until we reach the current time
-                while all_change_times[j] < t and j < all_change_times_len-1:
-                    j += 1
-                # j now indexes all_change_times at "t". Check that the next change
-                # time is not so close that this clock tick would be shorter than the
-                # minimum clock high time.
-                dt = all_change_times[j+1] - t
-                if dt < (2 * clock_line.minimum_clock_high_time):
-                    raise LabscriptError(
-                        "Commands have been issued to devices attached to "
-                        f"{self.name} at t={t} and t={all_change_times[j+1]}. "
-                        "One or more connected devices on ClockLine "
-                        f"{clock_line.name} cannot support clock ticks with a "
-                        "digital high time shorter than "
-                        f"{clock_line.minimum_clock_high_time} which is more "
-                        "than half the available time between the event at "
-                        f"t={t} on ClockLine {clock_line.name} and the next "
-                        "event on another ClockLine."
-                        + self._outputs_with_instructions_at(
-                            all_outputs, t, all_change_times[j+1]
-                        )
+                next_change_time = all_change_times[next_indices[i]]
+                raise LabscriptError(
+                    "Commands have been issued to devices attached to "
+                    f"{self.name} at t={t} and t={next_change_time}. "
+                    "One or more connected devices on ClockLine "
+                    f"{clock_line.name} cannot support clock ticks with a "
+                    "digital high time shorter than "
+                    f"{clock_line.minimum_clock_high_time} which is more "
+                    "than half the available time between the event at "
+                    f"t={t} on ClockLine {clock_line.name} and the next "
+                    "event on another ClockLine."
+                    + self._outputs_with_instructions_at(
+                        all_outputs, t, next_change_time
                     )
+                )
 
             # because we made the list into a set and back to a list, it is now
             # a different object so modifying it won't update the list in the
