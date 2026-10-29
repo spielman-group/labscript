@@ -1757,7 +1757,7 @@ class StaticDigitalQuantity(_StaticQuantity, DigitalQuantity):
                 f"{self.instruction_to_string(self._static_value)}. It cannot "
                 f"also be set to {value}."
             )
-        self.add_instruction(0, value)
+        self.add_instruction(self.t0, value)
         self._static_value = value
 
 
@@ -1834,9 +1834,9 @@ class Shutter(DigitalOut):
 
         Takes the open delay time into account.
 
-        Note that the delay time will not be take into account the open delay if the
-        command is made at t=0 (or other times less than the open delay). No warning
-        will be issued for this loss of precision during compilation.
+        A command within the open delay of the start of the shot is made at the
+        start, without its full delay. No warning is given for this loss of
+        precision.
 
         Parameters
         ----------
@@ -1846,7 +1846,7 @@ class Shutter(DigitalOut):
         # A shutter asked to do something at t=0 cannot start moving earlier, so
         # initial shutter states have imprecise timing. This does not warn, as every
         # run would warn for every shutter; the documentation says so instead.
-        t_calc = t - self.open_delay if t >= self.open_delay else 0
+        t_calc = max(t - self.open_delay, self.t0)
         self.actual_times[t] = {"time": t_calc, "instruction": 1}
         self.enable(t_calc)
 
@@ -1855,16 +1855,16 @@ class Shutter(DigitalOut):
 
         Takes the close delay time into account.
 
-        Note that the delay time will not be take into account the close delay if the
-        command is made at t=0 (or other times less than the close delay). No warning
-        will be issued for this loss of precision during compilation.
+        A command within the close delay of the start of the shot is made at the
+        start, without its full delay. No warning is given for this loss of
+        precision.
 
         Parameters
         ----------
         t : float
             Time, in seconds, when shutter should be closed.
         """
-        t_calc = t - self.close_delay if t >= self.close_delay else 0
+        t_calc = max(t - self.close_delay, self.t0)
         self.actual_times[t] = {"time": t_calc, "instruction": 0}
         self.disable(t_calc)
 
@@ -2125,7 +2125,7 @@ class _DDSBase(Device):
         )
 
         self.gate = None
-        digital_gate = digital_gate or {}
+        digital_gate = dict(digital_gate or {})
         if "device" in digital_gate and "connection" in digital_gate:
             dev = digital_gate.pop("device")
             conn = digital_gate.pop("connection")
@@ -2336,11 +2336,14 @@ class DDSQuantity(_DDSBase):
             Duration of the pulse, in seconds.
         """
         if print_summary:
-            functions.print_time(
-                t,
-                f"{self.name} pulse at {frequency/MHz:.4f} MHz "
-                f"for {duration/ms:.3f} ms",
-            )
+            if frequency is None:
+                summary = f"{self.name} pulse for {duration/ms:.3f} ms"
+            else:
+                summary = (
+                    f"{self.name} pulse at {frequency/MHz:.4f} MHz for "
+                    f"{duration/ms:.3f} ms"
+                )
+            functions.print_time(t, summary)
         self.setamp(t, amplitude, amplitude_units)
         if frequency is not None:
             self.setfreq(t, frequency, frequency_units)
@@ -2349,7 +2352,7 @@ class DDSQuantity(_DDSBase):
         if amplitude != 0 and self.gate is not None:
             self.enable(t)
             self.disable(t + duration)
-            self.setamp(t + duration, 0)
+        self.setamp(t + duration, 0)
         return duration
 
 
