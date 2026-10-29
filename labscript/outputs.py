@@ -528,6 +528,7 @@ class Output(Device):
                     instruction["function"](instruction["span"]),
                     instruction["units"],
                 )
+        trigger_delay = self.trigger_delay
         for trigger_time in trigger_times:
             # Ticks of the clock as it ran up to this trigger:
             offset = self._trigger_offset(trigger_time, trigger_times)
@@ -552,13 +553,13 @@ class Output(Device):
                         trigger_tick < t_tick
                         or isinstance(inst, dict) and t_tick == trigger_tick
                     )
-                    and quantise(t - offset - self.trigger_delay) < trigger_tick
+                    and quantise(t - offset - trigger_delay) < trigger_tick
                 ):
                     raise LabscriptError(
                         f"{self.description} {self.name} has an instruction at t={t}. "
                         f"This is too soon after a trigger at t={trigger_time}, "
                         "the earliest output possible after this trigger is at "
-                        f"t={trigger_time + self.trigger_delay}"
+                        f"t={trigger_time + trigger_delay}"
                     )
 
     def offset_instructions_from_trigger(self, trigger_times):
