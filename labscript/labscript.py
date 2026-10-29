@@ -27,11 +27,6 @@ import labscript_utils.h5_lock, h5py
 import labscript_utils.properties
 from labscript_utils.filewatcher import FileWatcher
 
-from pylab import *
-# numpy's deprecated core alias, which would otherwise replace labscript.core
-# in the package's namespace through `from labscript.labscript import *`:
-globals().pop('core', None)
-
 from labscript_utils import dedent
 from labscript_utils.properties import set_attributes
 
@@ -254,7 +249,7 @@ def save_time_markers(hdf5_file):
     """
     time_markers = compiler.time_markers
     dtypes = [('label', 'S256'), ('time', float), ('color', '(1,3)int')]
-    data_array = zeros(len(time_markers), dtype=dtypes)
+    data_array = np.zeros(len(time_markers), dtype=dtypes)
     for i, t in enumerate(time_markers):
         data_array[i] = time_markers[t]["label"], t, time_markers[t]["color"]
     hdf5_file.create_dataset('time_markers', data=data_array)
@@ -323,7 +318,9 @@ def generate_connection_table(hdf5_file):
         ('BLACS_connection', vlenstring),
         ('properties', vlenstring),
     ]
-    connection_table_array = empty(len(connection_table), dtype=connection_table_dtypes)
+    connection_table_array = np.empty(
+        len(connection_table), dtype=connection_table_dtypes
+    )
     for i, row in enumerate(connection_table):
         connection_table_array[i] = row
     dataset = hdf5_file.create_dataset(
@@ -544,7 +541,7 @@ def generate_wait_table(hdf5_file):
         Handle to file to save to.
     """
     dtypes = [('label', 'S256'), ('time', float), ('timeout', float)]
-    data_array = zeros(len(compiler.wait_table), dtype=dtypes)
+    data_array = np.zeros(len(compiler.wait_table), dtype=dtypes)
     for i, t in enumerate(sorted(compiler.wait_table)):
         label, timeout = compiler.wait_table[t]
         data_array[i] = label, t, timeout
@@ -698,10 +695,7 @@ def wait(label, t, timeout=5):
     max_delay = trigger_all_pseudoclocks(t)
     if t in compiler.wait_table:
         raise LabscriptError(f'There is already a wait at t={t}')
-    # A list, because `any` here is numpy's, from the pylab star import.
-    if any(
-        [label == existing_label for existing_label, _ in compiler.wait_table.values()]
-    ):
+    if any(label == existing for existing, _ in compiler.wait_table.values()):
         raise LabscriptError(f'There is already a wait named {label}')
     compiler.wait_table[t] = str(label), float(timeout)
     return max_delay
@@ -740,7 +734,7 @@ def add_time_marker(t, label, color=None, verbose=False):
         color = PIL.ImageColor.getrgb(color)
     if color is None:
         color = (-1, -1, -1)
-    elif not builtins.all(0 <= n <= 255 for n in color):
+    elif not all(0 <= n <= 255 for n in color):
         raise ValueError(f"Invalid RGB tuple {color}")
     if verbose:
         functions.print_time(t, label)

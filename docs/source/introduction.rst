@@ -19,5 +19,7 @@ To give you an idea of what a sample experiment looks like, the simplest experim
     
 The script consists of two parts, the :doc:`connection table <connection_table>` and the :doc:`experiment logic <experiment_logic>`.
 
+``from labscript import *`` gives a script labscript's own names only. A script that uses numpy, for example to compute ramp values, imports it itself, as ``import numpy as np``.
+
 
     

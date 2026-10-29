@@ -16,7 +16,6 @@
 These are not used directly; see the interfaces in `AnalogQuantity`/`AnalogOut`.
 """
 
-from pylab import *
 import numpy as np
 
 from .utils import print_time
@@ -68,7 +67,7 @@ def sine(duration, amplitude, angfreq, phase, dc_offset):
     func
         Function that takes a single parameter `t`.
     """
-    return lambda t: amplitude * sin(angfreq * t + phase) + dc_offset
+    return lambda t: amplitude * np.sin(angfreq * t + phase) + dc_offset
 
 
 def sine_ramp(duration, initial, final):
@@ -90,7 +89,10 @@ def sine_ramp(duration, initial, final):
     func
         Function that takes a single parameter `t`.
     """
-    return lambda t: (final - initial) * (sin(pi * t / (2 * duration))) ** 2 + initial
+    return (
+        lambda t: (final - initial) * (np.sin(np.pi * t / (2 * duration))) ** 2
+        + initial
+    )
 
 
 def sine4_ramp(duration, initial, final):
@@ -112,7 +114,10 @@ def sine4_ramp(duration, initial, final):
     func
         Function that takes a single parameter `t`.
     """
-    return lambda t: (final - initial) * (sin(pi * t / (2 * duration))) ** 4 + initial
+    return (
+        lambda t: (final - initial) * (np.sin(np.pi * t / (2 * duration))) ** 4
+        + initial
+    )
 
 
 def sine4_reverse_ramp(duration, initial, final):
@@ -135,7 +140,8 @@ def sine4_reverse_ramp(duration, initial, final):
         Function that takes a single parameter `t`.
     """
     return (
-        lambda t: (final - initial) * (sin(pi / 2 + pi * t / (2 * duration))) ** 4
+        lambda t: (final - initial)
+        * (np.sin(np.pi / 2 + np.pi * t / (2 * duration))) ** 4
         + initial
     )
 
@@ -162,8 +168,8 @@ def exp_ramp(duration, initial, final, zero):
     func
         Function that takes a single parameter `t`.
     """
-    rate = 1 / duration * log((initial - zero) / (final - zero))
-    return lambda t: (initial - zero) * exp(-rate * t) + zero
+    rate = 1 / duration * np.log((initial - zero) / (final - zero))
+    return lambda t: (initial - zero) * np.exp(-rate * t) + zero
 
 
 def exp_ramp_t(duration, initial, final, time_constant):
@@ -188,10 +194,10 @@ def exp_ramp_t(duration, initial, final, time_constant):
     func
         Function that takes a single parameter `t`.
     """
-    zero = (final - initial * exp(-duration / time_constant)) / (
-        1 - exp(-duration / time_constant)
+    zero = (final - initial * np.exp(-duration / time_constant)) / (
+        1 - np.exp(-duration / time_constant)
     )
-    return lambda t: (initial - zero) * exp(-t / time_constant) + zero
+    return lambda t: (initial - zero) * np.exp(-t / time_constant) + zero
 
 
 def piecewise_accel(duration, initial, final):
@@ -328,7 +334,7 @@ def pulse_sequence(pulse_sequence, period):
             len(t)
             is_array = True
         except TypeError:
-            t = array([t])
+            t = np.array([t])
             is_array = False
 
         times = t % period
