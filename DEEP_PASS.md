@@ -24,21 +24,14 @@ merged. Each commit credits its upstream source.
 | `efcb901` | `set_passed_properties` returns the function when it has no properties, and binds arguments only when needed | `6dd7306` |
 | `16fed4f` | Imported modules' absolute paths kept between shots | `8b0349a` |
 | `4e4e371` | The release workflow, as upstream's | `adee8c1`, `cd154a1` |
+| `9b4252c` | `StaticDDS.enable` and `disable` with no time act from the start of the shot (Ian), with a test | `4549021` |
+| `a37f97c` | `round_time` rounds a scalar time to 0.1 ns; the stop-time gap uses it, the array checks keep `np.round` | `ceb469f` |
+| `86d1195` | Trigger offsets precomputed, and each time's found by bisection over the same tick test; identical to the loop on 122,730 times | `f5fd7eb` |
 
 ## Not possible
 
-- `f5fd7eb`'s trigger-offset bisection in `Output.offset_instructions_from_trigger`:
-  the fork counts a trigger as before an instruction by comparing ticks of the
-  clock as its offset accumulates (`_trigger_offset`), which a bisection over
-  raw times cannot express. CompilerCleanup's integer ticks would make it
-  possible.
-- `ceb469f`'s `round_time`: the fork rounds times to clock ticks, not to 0.1 ns,
-  so it has no `round(t, 10)` for it to speed up. CompilerCleanup does not
-  change that.
-- `8b0349a`'s cache of labscript's names: the fork's name check builds no set to
-  cache.
-- `StaticDDS.enable` and `disable` without a time: the fork requires a time
-  (Ian).
+- `8b0349a`'s cache of labscript's names: the fork's name check reads the
+  namespace dict directly and builds no set to cache.
 
 The rest of upstream's commits were already in the fork in other forms.
 
@@ -53,3 +46,6 @@ The rest of upstream's commits were already in the fork in other forms.
   against `0bc9763`, 84 identical and 41 same refusal of 125.
 - The rest of the stage compiles every shot in the sweep identically: `1653bba`
   against `e521161`, 84 identical and 41 same refusal of 125.
+- `StaticDDS`, `round_time` and the bisection compile every shot in the sweep
+  identically: `e8605c2` against `86d1195`, 84 identical and 41 same refusal of
+  125.
