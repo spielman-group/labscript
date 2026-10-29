@@ -20,7 +20,7 @@ import numpy as np
 
 from .base import Device
 from .compiler import compiler
-from .utils import LabscriptError, fastflatten, set_passed_properties
+from .utils import LabscriptError, fastflatten, round_time, set_passed_properties
 
 
 class IntermediateDevice(Device):
@@ -297,7 +297,7 @@ class Pseudoclock(Device):
             # Also add the stop time as as change time. First check that it
             # isn't too close to the time of the last instruction:
             if not self.parent_device.stop_time in change_time_list:
-                dt = round(self.parent_device.stop_time - change_time_list[-1], 10)
+                dt = round_time(self.parent_device.stop_time - change_time_list[-1])
                 if abs(dt) < 1.0/clock_line.clock_limit:
                     raise LabscriptError(
                         "The stop time of the experiment is "

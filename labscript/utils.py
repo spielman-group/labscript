@@ -118,6 +118,22 @@ def renamed_keyword(kwargs, old, new, value, where, stacklevel=3):
     return kwargs.pop(old)
 
 
+def round_time(t):
+    """Return round(t, 10), the time t rounded to 0.1 ns.
+
+    For a NumPy float64, round() uses NumPy's rounding, which multiplies by 1e10,
+    rounds to the nearest integer and divides by 1e10. This function does the same
+    arithmetic with Python floats, which is about ten times faster.
+    """
+    if type(t) is np.float64:
+        try:
+            return np.float64(round(float(t) * 1e10) / 1e10)
+        except (OverflowError, ValueError):
+            # inf or nan
+            pass
+    return round(t, 10)
+
+
 def fastflatten(inarray, dtype):
     """A faster way of flattening our arrays than pylab.flatten.
 
