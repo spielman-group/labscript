@@ -662,13 +662,12 @@ class Output(Device):
         value: a single value, a reference to a function for a ramp, etc. The list of
         states is stored in `self.timeseries` rather than returned.
         """
-        self.timeseries = []
-        i = 0
-        time_len = len(self.times)
-        for change_time in change_times:
-            while i < time_len and change_time >= self.times[i]:
-                i += 1
-            self.timeseries.append(self.instructions[self.times[i - 1]])
+        # For each change time, the index of the last instruction at or before it:
+        indices = np.maximum.accumulate(
+            np.searchsorted(self.times, change_times, side='right')
+        ) - 1
+        instructions = [self.instructions[t] for t in self.times]
+        self.timeseries = [instructions[i] for i in indices.tolist()]
 
     def expand_timeseries(self, all_times, flat_all_times_len):
         """Evaluate the ramp functions in `self.timeseries` at the times in `all_times`.
