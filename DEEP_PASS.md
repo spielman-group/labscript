@@ -17,18 +17,28 @@ merged. Each commit credits its upstream source.
 | `c08c187`, `4007ca9` | Python 3.13 or later, the suite's floor (Ian) | `fe761f9`, raised |
 | `e8c33f7` | `set_passed_properties` binds arguments with a signature made once | `98edcdc` |
 | `0bc9763` | A device finds its pseudoclock device once, kept in a declared attribute | `8b0349a`, the cache only |
+| `3de300b` | Change-time intervals checked with numpy and rounded to 0.1 ns; `stop(t)` one interval after the last instruction compiles, with a test | `f5fd7eb`, `4549021` |
+| `24427be` | Each clock line's ramps found once, waits looked up in a set; a ramp's tick count rounded to nine places | `f5fd7eb`, `4549021` |
+| `0c520ce` | `make_timeseries` finds each change time's instruction with searchsorted | `f5fd7eb` |
+| `e521161` | `Output.do_checks` gets the trigger delay once | `f5fd7eb` |
+| `efcb901` | `set_passed_properties` returns the function when it has no properties, and binds arguments only when needed | `6dd7306` |
+| `16fed4f` | Imported modules' absolute paths kept between shots | `8b0349a` |
+| `4e4e371` | The release workflow, as upstream's | `adee8c1`, `cd154a1` |
 
-## Not taken
+## Not possible
 
-- `4549021`'s rounding of tick counts and time differences, and the speed-ups
-  `f5fd7eb` and `ceb469f`: they rework timing code the fork has replaced, and
-  are left to CompilerCleanup.
-- The rest of `8b0349a` (the labscript-names and module-path caches), and
-  `6dd7306`: the fork already writes property keys in declaration order, so its
-  reordering does not apply, and its speed-up was not chosen.
+- `f5fd7eb`'s trigger-offset bisection in `Output.offset_instructions_from_trigger`:
+  the fork counts a trigger as before an instruction by comparing ticks of the
+  clock as its offset accumulates (`_trigger_offset`), which a bisection over
+  raw times cannot express. CompilerCleanup's integer ticks would make it
+  possible.
+- `ceb469f`'s `round_time`: the fork rounds times to clock ticks, not to 0.1 ns,
+  so it has no `round(t, 10)` for it to speed up. CompilerCleanup does not
+  change that.
+- `8b0349a`'s cache of labscript's names: the fork's name check builds no set to
+  cache.
 - `StaticDDS.enable` and `disable` without a time: the fork requires a time
   (Ian).
-- CI workflow syncs.
 
 The rest of upstream's commits were already in the fork in other forms.
 
@@ -41,3 +51,5 @@ The rest of upstream's commits were already in the fork in other forms.
   every pulse program, and nothing else.
 - The two speed-ups compile every shot in the sweep identically: `21f061f`
   against `0bc9763`, 84 identical and 41 same refusal of 125.
+- The rest of the stage compiles every shot in the sweep identically: `1653bba`
+  against `e521161`, 84 identical and 41 same refusal of 125.
