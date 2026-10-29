@@ -16,6 +16,7 @@
 import functools
 import sys
 import warnings
+from bisect import bisect_left
 
 import numpy as np
 
@@ -344,20 +345,34 @@ class Output(Device):
             return self.quantise_to_pseudoclock(t)
         return t
 
-    def _trigger_offset(self, t, trigger_times):
-        """The time to subtract from `t` to put it on this output's own clock.
+    def _trigger_offsets(self, trigger_times):
+        """Return a function of a time `t` giving the time to subtract from it to put
+        it on this output's own clock.
 
-        It is the first trigger time plus a trigger delay for each trigger before `t`.
-        A trigger is before `t` if `t` falls on a later tick of the clock as it ran up
-        to that trigger.
+        That is the first trigger time plus a trigger delay for each trigger before
+        `t`. A trigger is before `t` if `t` falls on a later tick of the clock as it ran
+        up to that trigger. Since triggers are further apart than the delay, that holds
+        for the earliest triggers and fails from some trigger on, which is found by
+        bisection.
         """
         tick = self.quantise_to_pseudoclock
-        offset = trigger_times[0]
-        for trigger_time in sorted(trigger_times):
-            if tick(t - offset) <= tick(trigger_time - offset):
-                break
-            offset += self.trigger_delay
-        return offset
+        sorted_trigger_times = sorted(trigger_times)
+        # Summed trigger by trigger, as the clock's offset accumulates:
+        offsets = [trigger_times[0]]
+        for _ in sorted_trigger_times:
+            offsets.append(offsets[-1] + self.trigger_delay)
+
+        def offset_at(t):
+            def not_before(k):
+                offset = offsets[k]
+                return tick(t - offset) <= tick(sorted_trigger_times[k] - offset)
+
+            triggers_before = bisect_left(
+                range(len(sorted_trigger_times)), True, key=not_before
+            )
+            return offsets[triggers_before]
+
+        return offset_at
 
     def _add_ramp(
         self, t, duration, performed, description, samplerate, units, function, *args
@@ -501,8 +516,10 @@ class Output(Device):
         # rounded to only once its trigger offsets are applied.
         quantise = self.quantise_to_pseudoclock
 
+        offset_at = self._trigger_offsets(trigger_times)
+
         def tick(t):
-            return quantise(t - self._trigger_offset(t, trigger_times))
+            return quantise(t - offset_at(t))
 
         if tick(self.t0) not in {tick(t) for t in self.instructions}:
             if (
@@ -531,7 +548,7 @@ class Output(Device):
         trigger_delay = self.trigger_delay
         for trigger_time in trigger_times:
             # Ticks of the clock as it ran up to this trigger:
-            offset = self._trigger_offset(trigger_time, trigger_times)
+            offset = offset_at(trigger_time)
             trigger_tick = quantise(trigger_time - offset)
             for t, inst in self.instructions.items():
                 t_tick = quantise(t - offset)
@@ -570,17 +587,18 @@ class Output(Device):
         trigger_times : iterable
             Times of all trigger events.
         """
+        offset_at = self._trigger_offsets(trigger_times)
         offset_instructions = {}
         sources = {}
         for t, instruction in self.instructions.items():
-            offset = self._trigger_offset(t, trigger_times)
+            offset = offset_at(t)
             if isinstance(instruction, dict):
                 offset_instruction = instruction.copy()
                 # A ramp starting on a trigger's tick runs after the trigger, so its
                 # end takes its own offset, as its end hold does.
                 end = instruction["end time"]
                 offset_instruction["end time"] = self.quantise_to_pseudoclock(
-                    end - self._trigger_offset(end, trigger_times)
+                    end - offset_at(end)
                 )
                 offset_instruction["initial time"] = self.quantise_to_pseudoclock(
                     instruction["initial time"] - offset
