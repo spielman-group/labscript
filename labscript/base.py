@@ -60,6 +60,7 @@ class Device:
 
     # Device.__init__ makes the properties, one dict per location:
     _properties = None
+    _pseudoclock_device = None
 
     @set_passed_properties(
         property_names = {"device_properties": ["added_properties"]}
@@ -380,9 +381,11 @@ class Device:
     def pseudoclock_device(self):
         """:obj:`PseudoclockDevice`: Stores the clocking pseudoclock, which may be
         itself."""
-        if self.parent_device is None:
-            return None
-        return self.parent_device.pseudoclock_device
+        # A device's ancestors do not change once it is connected, so the walk up
+        # the tree is made once:
+        if self._pseudoclock_device is None and self.parent_device is not None:
+            self._pseudoclock_device = self.parent_device.pseudoclock_device
+        return self._pseudoclock_device
 
     def quantise_to_pseudoclock(self, times, ticks=False):
         """Quantises `times` to the resolution of the controlling pseudoclock.
