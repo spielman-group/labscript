@@ -57,7 +57,8 @@ NovaTechDDS9M(
     com_port="com10",
 )
 
-# A second pseudoclock to just clock an NI_PCI_6733 card
+# A second pseudoclock, which clocks only an NI PCI-6733 card. A digital output of
+# ni_card_0 triggers it.
 PineBlaster(
     name="pineblaster_0",
     trigger_device=ni_card_0,
@@ -71,8 +72,8 @@ NI_PCI_6733(
     MAX_name="ni_pci_6733_0",
 )
 
-# Create the output/input channels on the above devices. This one uses the example1
-# conversion class located in labscript_utils/unitconversions/example.py with default
+# Create the output and input channels on the above devices. This output uses the
+# unit conversion class example1 from labscript_utils.unitconversions with its default
 # parameters.
 AnalogOut(
     name="analog0",
@@ -110,8 +111,8 @@ DigitalOut(
 DDS(name="dds1", parent_device=novatechdds9m_0, connection="dds 0")
 DDS(name="dds2", parent_device=novatechdds9m_0, connection="dds 1")
 StaticDDS(name="dds5", parent_device=novatechdds9m_0, connection="dds 2")
-# The next DDS is special because its frequency and amplitude are calibrated using the
-# example2 and example4 classes from labscript_utils/unitconversions/example.py
+# The frequency and amplitude of the next DDS have unit conversions, which are the
+# classes example2 and example4 from labscript_utils.unitconversions.
 DDS(
     name="dds3",
     parent_device=pulseblaster_0.direct_outputs,
@@ -123,9 +124,14 @@ DDS(
 )
 DDS(name="dds4", parent_device=pulseblaster_0.direct_outputs, connection="dds 1")
 
-# Pulses on `connection` mark waits; the counter on `acquisition_connection` times
-# them; `timeout_connection`, wired to the master pseudoclock's external trigger,
-# retriggers it when a wait times out.
+# The wait monitor measures the duration of each wait.
+# parent_device and connection are the digital output that produces a pulse when the
+# master pseudoclock starts and each time that it resumes after a wait. This output
+# must be connected with a cable to the counter input given by acquisition_device
+# and acquisition_connection, which measures the time between the pulses.
+# timeout_device and timeout_connection are the digital output that produces a pulse
+# if a wait reaches its timeout. This output must be connected to the trigger input
+# of the master pseudoclock.
 WaitMonitor(
     name="wait_monitor",
     parent_device=ni_card_0,
@@ -136,12 +142,11 @@ WaitMonitor(
     timeout_connection="pfi1",
 )
 
-# Sample rate for the analog outputs below; it could instead be a runmanager
-# global, set from its graphical interface.
+# The sample rate of the analog output ramps below. A value like this can also be a
+# global defined in runmanager instead of in the script.
 rate = 1e4
 
-# The time (in seconds) we wish the pineblaster pseudoclock to start after
-# the master pseudoclock (the pulseblaster)
+# The time, in seconds, at which the pineblaster is triggered.
 pineblaster_0.set_initial_trigger_time(t=0.9)
 
 # Start the experiment!
@@ -150,8 +155,8 @@ start()
 # A variable to keep track of time
 t = 0
 
-# Analog acquisitions are acquired at the sample rate specified when the *device* is
-# instantiated (e.g. NI_PCIe_6363() above).
+# Analog inputs are acquired at the sample rate that is given when the *device* is
+# instantiated (acquisition_rate of NI_PCIe_6363 above).
 # Acquire an analog trace on this channel from t=0s to t=1s
 input1.acquire(label="measurement1", start_time=0, end_time=1)
 # Acquire an analog trace on this channel from t=3s to t=5s
@@ -180,9 +185,14 @@ dds5.setphase(value=0)
 shutter1.close(t=t)
 shutter2.close(t=t)
 
-# analog0's card is clocked by the pineblaster, a secondary pseudoclock: labscript
-# handles its trigger delay, so times still count from the start of the shot, but
-# no command may come before analog0.t0, when the delayed device starts.
+# analog0 is an output of ni_card_1, which is an NI PCI-6733 card (MAX name
+# ni_pci_6733_0) that is clocked by the pineblaster.
+# The pineblaster starts when it is triggered by ni_card_0, so output from ni_card_1
+# starts later than output from devices on the master pseudoclock.
+# Labscript accounts for this delay: times are still given from the start of the
+# experiment (when the master pseudoclock starts).
+# No instruction on this channel may be earlier than the time at which the device
+# starts, which is analog0.t0.
 analog0.constant(t=analog0.t0, value=2)
 
 # Set this channel to a constant value. As this channel is clocked by the master
@@ -218,15 +228,33 @@ analog2.constant(t=5.9, value=5)
 analog2.constant(t=7, value=4)
 analog2.constant(t=8, value=5)
 
+
+# A ramp with a functional form of your own. customramp calls the function with the
+# time since the start of the ramp, the duration of the ramp, and the remaining
+# arguments of customramp other than units, samplerate and truncation.
+def my_ramp(t, duration, initial, final):
+    return initial + (final - initial) * (t / duration) ** 3
+
+
+analog2.customramp(
+    t=8.5, duration=0.4, function=my_ramp, initial=5, final=2, samplerate=rate
+)
+
 # Increment t by 9 seconds
 t += 9
 
-# Wait for an external trigger on the master pseudoclock. Waits must be named, and
-# continue after `timeout` (default 5 s) without one.
+# Wait for an external trigger on the master pseudoclock
+# Waits must be named.
+# The timeout is the time after which the experiment continues if there is no external
+# trigger. It is 5 s unless otherwise specified.
 t += wait(label="my_first_wait", t=t, timeout=2)
 
-# In labscript time a wait adds only the retriggering time; in execution it lasts 0
-# to `timeout` s, so after a wait labscript time (t here) and execution time differ.
+# Waits take very little time as far as labscript is concerned. wait() returns the
+# retriggering time needed to start devices up and get them all in sync again.
+# After a wait, labscript time (the t variable here) and execution time (when the
+# hardware instructions are executed on the hardware) will not be the same
+# as the wait instruction may take anywhere from 0 to "timeout" seconds,
+# and this number is only determined during execution time.
 
 t += 1
 # Do something 1s after the wait!
@@ -250,6 +278,6 @@ dds3.setamp(t=t, value=500, units="mW")
 # Hold values for 2 seconds
 t += 2
 
-# Stop at t=15 seconds. Because of the wait timeout, this might be as late as 17s
-# (plus a little bit of retriggering time) in execution time.
+# Stop at t = 15 s plus the retriggering time. Because of the wait timeout, this
+# might be as late as 17 s plus the retriggering time in execution time.
 stop(t=t)
