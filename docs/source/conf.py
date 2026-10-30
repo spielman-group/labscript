@@ -84,8 +84,8 @@ intersphinx_mapping = {
     'pyqtgraph': ('https://pyqtgraph.readthedocs.io/en/latest/', None),
     'matplotlib': ('https://matplotlib.org/stable/', None),
     'h5py': ('https://docs.h5py.org/en/stable/', None),
-    # A PyQt5 inventory, which is also used for PyQt6 and PySide6, because the names of
-    # the Qt classes are the same in all three bindings. The inventory is made by
+    # A PyQt6 inventory, which is also used for PySide6, because the names of the Qt
+    # classes are the same in both bindings. The inventory is made as by
     # https://github.com/MSLNZ/msl-qt/blob/master/docs/create_pyqt_objects.py, which is
     # under the MIT License.
     'qt': (
