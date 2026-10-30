@@ -1,8 +1,9 @@
 # labscript deep pass: upstream stage
 
-Upstream's commits on `master..upstream/master` (to `b0c132c`) that the fork
-lacked, ported by hand onto `CodeHealth`, with Ian's approval. `master` is not
-merged. Each commit credits its upstream source.
+Upstream's commits on `master..upstream/master` (to `607cfae`) that the fork
+lacked, ported onto `CodeHealth`, with Ian's approval. `master` is not merged.
+Each commit credits its upstream source; those to `b0c132c` were ported by hand,
+the later ones by `cherry-pick -x`.
 
 ## Ported
 
@@ -28,6 +29,11 @@ merged. Each commit credits its upstream source.
 | `a37f97c` | `round_time` rounds a scalar time to 0.1 ns; the stop-time gap uses it, the array checks keep `np.round` | `ceb469f` |
 | `86d1195` | Trigger offsets precomputed, and each time's found by bisection over the same tick test; identical to the loop on 122,730 times | `f5fd7eb` |
 | `e779ec3` | A device may not take a name that `from labscript import *` defines, checked against a cached set, with a test | `0f5ab3b`, `8b0349a` |
+| `50bd7de` | The docs' `conf.py` and index page tidied; the fork keeps its PyQt6 Qt inventory | `9a47e25` |
+| `334491d` | `example.py`'s comments corrected, and `my_ramp` a working `customramp`; the fork keeps its removal of the legacy Camera and its NovaTech `dds n` connections | `fbcb191` |
+| `c293635` | Docstrings and the connection table page corrected, and missing docstrings added, in the fork's numpy form | `c63d576` |
+| `df85e19` | The error for a used shot file names `labscript_init`'s arguments, not a `-f` argument | `945654f` |
+| `2eca9b5` | Fork adaptation: the Qt inventory comment taken from upstream describes the fork's PyQt6 inventory | `9a47e25` |
 
 ## Offered upstream
 
@@ -70,3 +76,6 @@ Ian's:
   125.
 - The device-name check compiles every shot in the sweep identically: `e1b89e0`
   against `e779ec3`, 84 identical and 41 same refusal of 125.
+- After the port to `607cfae`, labscript's suite passes (17), and
+  labscript-devices' (45, 1 skipped); `example.py` compiles, and `analog2`
+  follows `my_ramp` from 5 to 2.
